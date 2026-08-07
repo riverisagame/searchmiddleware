@@ -178,6 +178,11 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 		} else {
 			e.logSync(indexName, syncType, "success", result.Count, durationMs, throughput, "")
 		}
+
+		// SUG-003 规避：bulk 后主动 refresh（NRT 立即可见，消除对账/查询的等待窗口）
+		if err := e.zinc.Refresh(writeIndex, indexCfg.Index.ZincCluster); err != nil {
+			log.Printf("refresh %s failed: %v", writeIndex, err)
+		}
 	} else {
 		e.logSync(indexName, syncType, "success", 0, durationMs, throughput, "no changes")
 	}

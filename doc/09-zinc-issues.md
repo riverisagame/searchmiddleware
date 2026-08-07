@@ -207,3 +207,40 @@ Zinc 对嵌套 bool（must 内套 should）的 boost 聚合逻辑异常。可能
 | CreateIndex / UpdateMapping boost 一致 | 均 26.15 ✅ |
 
 **根因澄清**：此前 HTTP 测试显示 boost 不生效，实为**旧 Zinc 进程**（Zinc 团队在 15:50 后继续提交了 match.go 的 boost 逻辑 ffad572/16ab142，重建并重启后全部生效）。match.go 的 ffectiveBoost = queryBoost × prop.Boost 逻辑与 multi_match 的 per-field SetBoost 均正常。
+
+---
+
+## 新增提报（2026-08-07 第二轮）
+
+### REQ-003：同义词内容级更新 API（P1）
+
+**现状**：POST /api/_reload/synonym 仅触发文件重载（system.go:152 ReloadSynonyms → nalysis.ReloadAllSynonyms()），**不接受请求体内容**。同义词更新必须：外部写文件 → 调重载。
+
+**场景痛点**（searchmiddleware 实测）：
+- 当前方案：GUI 改同义词 → searchmiddleware 写共享卷文件（synonyms.txt）→ 调重载
+- 多 Zinc 节点（Q14）/容器化部署：每节点需共享同一卷，或逐节点写文件，易错难维护
+
+**期望**：
+`
+POST /api/_reload/synonym
+Content-Type: application/json
+{ entries: [[手机, 移动电话], [计算机, 电脑, PC]]}
+→ 200 {reloaded: true, entries: 42}
+`
+内存级替换同义词词典，返回生效条目数。
+
+**影响**：searchmiddleware 同义词管理脱离共享卷依赖；多节点部署一行配置即可。
+
+---
+
+### SUG-003：写入后可见性（refresh）语义（P2）
+
+**现状**：bulk 写入后 ~1s 才可搜索（NRT），无 ?refresh=true|wait_for 请求参数支持（ES 标准）。
+
+**影响**：同步引擎写入后立即读场景（对账、集成测试、GUI 即时验证）需手动等待或显式调 POST /es/:target/_refresh（实测 1.5s 等待）。
+
+**期望**：
+- bulk/写入端点支持 ?refresh=true（写入后立即刷新）或 ?refresh=wait_for
+- 或文档化默认 refresh 间隔与调优方式
+
+**注**：searchmiddleware 已用 POST /es/:target/_refresh 规避（中间件侧），此条为体验优化建议。

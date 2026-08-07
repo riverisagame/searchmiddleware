@@ -314,6 +314,29 @@ func (c *Client) AliasSwap(addMap, removeMap map[string][]string, clusterName st
 	return nil
 }
 
+// Refresh 强制刷新索引（NRT 可见性，SUG-003 规避）：POST /es/{index}/_refresh
+func (c *Client) Refresh(index, clusterName string) error {
+	url, err := c.getHealthyURL(clusterName)
+	if err != nil {
+		return err
+	}
+	req, err := c.newRequest("POST", url+"/es/"+index+"/_refresh", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		c.markUnhealthy(url)
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 500 {
+		c.markUnhealthy(url)
+		return fmt.Errorf("refresh error: %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func (c *Client) GetAlias(index string, clusterName string) (map[string]interface{}, error) {
 	url, err := c.getHealthyURL(clusterName)
 	if err != nil {
