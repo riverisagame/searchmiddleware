@@ -273,3 +273,28 @@ Content-Type: application/json
 | 缺陷 1（依赖 SYNONYM_PATH + 索引前置） | 仍存在（warning 文本已明确告知） |
 
 **结论**：Zinc 采纳方案 B（诊断字段 + warning），放弃方案 A（懒初始化）。静默误导已消除；功能仍要求配置 env + 先建索引。searchmiddleware 侧：同义词导出仍走共享卷文件 + 重载（现有闭环不受影响），warning 字段可用于 GUI 提示。
+
+---
+
+## 新增提报（2026-08-07 第三轮）
+
+### SEC-001：/api/_reload/synonym 无鉴权（P1 安全）
+
+**现状**：outes.go:200 .POST( /api/_reload/synonym, system.ReloadSynonyms) —— **无 AuthMiddleware**。同一文件其他 API 路由（refresh/mapping/doc/bulk 等）全部带 AuthMiddleware(...)。
+
+**风险**：
+- 未认证者可 POST entries **覆盖/清空同义词词典**（内容污染，搜索召回被篡改）
+- 可高频触发重载（性能影响）
+- 内网部署也不应裸奔
+
+**期望**：与 /api/_refresh 一致加 AuthMiddleware(system.ReloadSynonyms)。
+
+---
+
+### SUG-004：文档删除不支持 refresh 参数（P2）
+
+**现状**：DELETE /es/:target/_doc/:id / /api/:target/_doc/:id 无 ?refresh=true 处理（bulk 已支持，SUG-003 修复过，delete 未覆盖）。
+
+**影响**：同步引擎软删清理后立即对账/查询，删除不可见（NRT 窗口），需手动等或调 _refresh。
+
+**期望**：delete 端点支持 ?refresh=true|wait_for，与 bulk 行为一致。
