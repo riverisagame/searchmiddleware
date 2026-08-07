@@ -1,0 +1,134 @@
+<template>
+  <div>
+    <el-card>
+      <template #header>搜索测试</template>
+      <el-form inline>
+        <el-form-item label="索引">
+          <el-select v-model="form.index" style="width: 180px" placeholder="选择索引">
+            <el-option v-for="i in indexes" :key="i" :label="i" :value="i" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="关键词">
+          <el-input v-model="form.keyword" placeholder="留空 = match_all" style="width: 220px" @keyup.enter="search" />
+        </el-form-item>
+        <el-form-item label="site_id">
+          <el-input v-model="form.site_id" placeholder="可选" style="width: 100px" />
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-select v-model="form.sort" style="width: 150px" clearable>
+            <el-option label="相关度" value="score" />
+            <el-option label="价格↓" value="price:desc" />
+            <el-option label="价格↑" value="price:asc" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="form.highlight">高亮</el-checkbox>
+        </el-form-item>
+        <el-button type="primary" @click="search">搜索</el-button>
+      </el-form>
+      <el-form>
+        <el-form-item label="filter JSON">
+          <el-input v-model="form.filter" placeholder='{"status":1,"category_ids":[238],"price":{"gte":10,"lte":100}}' style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="aggs JSON">
+          <el-input v-model="form.aggs" placeholder='{"categories":{"field":"category_ids","size":20},"price_ranges":{"field":"price","ranges":[[0,100],[100,300]]}}' style="width: 100%" />
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card v-if="result" style="margin-top: 16px">
+      <template #header>结果：{{ result.total }} 条（{{ result.took }}ms）</template>
+      <el-table :data="result.items" size="small" border>
+        <el-table-column label="ID" width="80">
+          <template #default="{ row }">{{ row.id }}</template>
+        </el-table-column>
+        <el-table-column label="分数" width="90">
+          <template #default="{ row }">{{ Number(row.score).toFixed(4) }}</template>
+        </el-table-column>
+        <el-table-column label="字段">
+          <template #default="{ row }">
+            <div v-for="(v, k) in row.fields" :key="k" class="field-row">
+              <span class="field-key">{{ k }}:</span>
+              <span v-if="row.highlight && row.highlight[k]"
+                v-html="Array.isArray(row.highlight[k]) ? row.highlight[k][0] : row.highlight[k]" />
+              <span v-else>{{ fmt(v) }}</span>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="result.aggs" style="margin-top: 16px">
+        <el-divider>聚合</el-divider>
+        <el-row :gutter="16">
+          <el-col v-for="(agg, name) in result.aggs" :key="name" :span="12">
+            <el-card shadow="never" size="small" style="margin-bottom: 12px">
+              <template #header>{{ name }}</template>
+              <div v-for="b in agg.buckets" :key="String(b.key)" class="bucket-row">
+                <span>{{ b.key }}</span>
+                <el-progress :percentage="bucketPct(b.doc_count)" :format="() => b.doc_count" :stroke-width="14" />
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+    </el-card>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { api } from '../api'
+
+const indexes = ref([])
+const result = ref(null)
+const form = reactive({
+  index: '',
+  keyword: '',
+  site_id: '',
+  sort: 'score',
+  highlight: false,
+  filter: '',
+  aggs: '',
+})
+
+function fmt(v) {
+  if (v === null || v === undefined) return ''
+  if (Array.isArray(v)) return v.join(', ')
+  return String(v)
+}
+
+function bucketPct(n) {
+  const max = Math.max(...Object.values(result.value?.aggs || {}).flatMap((a) => a.buckets.map((b) => b.doc_count)))
+  return max ? Math.round((n / max) * 100) : 0
+}
+
+async function search() {
+  if (!form.index) return ElMessage.warning('请选择索引')
+  const params = { index: form.index, limit: 20 }
+  if (form.keyword) params.keyword = form.keyword
+  if (form.site_id) params.site_id = form.site_id
+  if (form.sort && form.sort !== 'score') params.sort = form.sort
+  if (form.highlight) params.highlight = '1'
+  if (form.filter) params.filter = form.filter
+  if (form.aggs) params.aggs = form.aggs
+
+  try {
+    const data = await api.search(params)
+    result.value = data
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
+onMounted(async () => {
+  indexes.value = (await api.listIndexes().catch(() => [])) || []
+})
+</script>
+
+<style scoped>
+.field-row { line-height: 1.6; }
+.field-key { color: #909399; margin-right: 6px; }
+.bucket-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.bucket-row span { min-width: 80px; }
+</style>

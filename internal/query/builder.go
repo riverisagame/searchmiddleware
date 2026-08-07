@@ -93,10 +93,44 @@ func (b *QueryBuilder) Build(req SearchRequest) (map[string]interface{}, error) 
 	}
 
 	if len(req.Aggs) > 0 {
-		body["aggs"] = req.Aggs
+		body["aggs"] = normalizeAggs(req.Aggs)
 	}
 
 	return body, nil
+}
+
+// normalizeAggs 将 API 简写聚合（{"cats":{"field":"category_ids","size":20}}）包装为 Zinc 完整结构
+// 自动推断类型：有 ranges → range；否则 → terms（ES 标准 {"cats":{"terms":{"field":...}}}）
+func normalizeAggs(aggs map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{}, len(aggs))
+	for name, agg := range aggs {
+		aggMap, ok := agg.(map[string]interface{})
+		if !ok {
+			result[name] = agg
+			continue
+		}
+		// 已带类型键（terms/range/avg 等）则透传
+		if hasAggType(aggMap) {
+			result[name] = aggMap
+			continue
+		}
+		if _, hasRanges := aggMap["ranges"]; hasRanges {
+			result[name] = map[string]interface{}{"range": aggMap}
+		} else {
+			result[name] = map[string]interface{}{"terms": aggMap}
+		}
+	}
+	return result
+}
+
+func hasAggType(m map[string]interface{}) bool {
+	for k := range m {
+		switch k {
+		case "terms", "range", "avg", "sum", "min", "max", "cardinality", "date_histogram", "histogram":
+			return true
+		}
+	}
+	return false
 }
 
 // buildKeywordQuery 返回 bool.should 数组（每字段独立 match + 查询级 boost）
@@ -277,6 +311,10 @@ func (b *QueryBuilder) ParseResponse(zincResp map[string]interface{}) (map[strin
 	result := map[string]interface{}{
 		"total": total,
 		"items": items,
+	}
+
+	if took, ok := zincResp["took"]; ok {
+		result["took"] = took
 	}
 
 	if aggs, ok := zincResp["aggregations"]; ok {

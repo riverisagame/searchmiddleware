@@ -1,4 +1,4 @@
-server:
+﻿server:
   api_port: 8090
   gui_port: 8091
   read_timeout: 10s
@@ -10,7 +10,7 @@ security:
 zinc:
   clusters:
     default:
-      - http://localhost:4080
+      - http://localhost:4081
   default: default
   username: admin
   password: Complexpass#123
@@ -26,3 +26,4 @@ env: dev
 storage: file
 data_dir: ./data
 synonyms_file: ./data/dict/synonyms.txt
+

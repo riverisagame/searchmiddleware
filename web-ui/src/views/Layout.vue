@@ -5,6 +5,7 @@
       <el-menu :default-active="$route.path" router background-color="#001529" text-color="#c8c9cc"
         active-text-color="#fff">
         <el-menu-item index="/dashboard"><el-icon><Odometer /></el-icon>仪表盘</el-menu-item>
+        <el-menu-item index="/search-test"><el-icon><Search /></el-icon>搜索测试</el-menu-item>
         <el-menu-item index="/sync"><el-icon><Refresh /></el-icon>同步中心</el-menu-item>
         <el-menu-item index="/schedules"><el-icon><Timer /></el-icon>定时任务</el-menu-item>
         <el-menu-item index="/logs"><el-icon><Document /></el-icon>日志中心</el-menu-item>
@@ -35,7 +36,7 @@
 </template>
 
 <script setup>
-import { Odometer, Refresh, Timer, Document, Checked, Setting, Link, Bell, User } from '@element-plus/icons-vue'
+import { Odometer, Refresh, Timer, Document, Checked, Setting, Link, Bell, User, Search } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 

@@ -9,6 +9,7 @@ const routes = [
     children: [
       { path: '', redirect: '/dashboard' },
       { path: 'dashboard', component: () => import('../views/Dashboard.vue'), meta: { title: '仪表盘' } },
+      { path: 'search-test', component: () => import('../views/SearchTest.vue'), meta: { title: '搜索测试' } },
       { path: 'sync', component: () => import('../views/SyncCenter.vue'), meta: { title: '同步中心' } },
       { path: 'schedules', component: () => import('../views/Schedules.vue'), meta: { title: '定时任务' } },
       { path: 'logs', component: () => import('../views/Logs.vue'), meta: { title: '日志中心' } },
@@ -38,3 +39,4 @@ router.beforeEach((to) => {
 })
 
 export default router
+
