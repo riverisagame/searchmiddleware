@@ -298,3 +298,15 @@ Content-Type: application/json
 **影响**：同步引擎软删清理后立即对账/查询，删除不可见（NRT 窗口），需手动等或调 _refresh。
 
 **期望**：delete 端点支持 ?refresh=true|wait_for，与 bulk 行为一致。
+
+---
+
+## SEC-001 / SUG-004 复查（2026-08-07 21:55，cf13113）
+
+| 验证项 | 结果 |
+|--------|------|
+| SEC-001 无鉴权调用 /api/_reload/synonym | **401 拒绝** ✅ |
+| SEC-001 带鉴权调用 | 200 正常 ✅ |
+| SUG-004 DELETE .../_doc/:id?refresh=true 后立即搜索 | **total=1（删除立即可见）** ✅ |
+
+**结论**：两项均已修复（cf13113），修复方式与建议完全一致（AuthMiddleware + 复用 refreshTarget）。
