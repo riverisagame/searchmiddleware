@@ -260,3 +260,16 @@ Content-Type: application/json
 **根因**：SetSynonymEntries 遍历 synonymProcessors 注册表，注册需 SYNONYM_PATH env + 索引 analyzer 构建两个隐性前置；注册表空时静默返回 0（eloaded:true 误导）。
 
 **完整分析报告已提交**：D:\claudeprj\zincsearch\docs\issues\20260807_req003_partial_fix.md（含建议修复方案 A/B）。
+
+---
+
+## REQ-003 二次复查（2026-08-07 20:55，d1b6c9c）
+
+**状态**：⚠️ 部分修复（缺陷 2 已修复，缺陷 1 保留）
+
+| 验证项 | 结果 |
+|--------|------|
+| 裸启动 POST entries（无索引） | ntries:0 processors:0 warning: no synonym processor registered: set ZINC_ANALYSIS_SYNONYM_PATH and create an index first — **不再静默** ✅ |
+| 缺陷 1（依赖 SYNONYM_PATH + 索引前置） | 仍存在（warning 文本已明确告知） |
+
+**结论**：Zinc 采纳方案 B（诊断字段 + warning），放弃方案 A（懒初始化）。静默误导已消除；功能仍要求配置 env + 先建索引。searchmiddleware 侧：同义词导出仍走共享卷文件 + 重载（现有闭环不受影响），warning 字段可用于 GUI 提示。
