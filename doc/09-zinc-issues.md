@@ -244,3 +244,19 @@ Content-Type: application/json
 - 或文档化默认 refresh 间隔与调优方式
 
 **注**：searchmiddleware 已用 POST /es/:target/_refresh 规避（中间件侧），此条为体验优化建议。
+
+---
+
+## REQ-003 复查（2026-08-07 18:19）
+
+**状态**：⚠️ 部分修复（51e1973 已实现 entries body + refresh 参数）
+
+| 验证项 | 结果 |
+|--------|------|
+| SUG-003 refresh=true/wait_for | ✅ 已修复：bulk ?refresh=true 立即可见（实测 total=1） |
+| REQ-003 entries body（裸启动） | ❌ ntries:0 静默 |
+| REQ-003 entries body（配 SYNONYM_PATH + 建索引后） | ✅ ntries:5 生效 |
+
+**根因**：SetSynonymEntries 遍历 synonymProcessors 注册表，注册需 SYNONYM_PATH env + 索引 analyzer 构建两个隐性前置；注册表空时静默返回 0（eloaded:true 误导）。
+
+**完整分析报告已提交**：D:\claudeprj\zincsearch\docs\issues\20260807_req003_partial_fix.md（含建议修复方案 A/B）。
