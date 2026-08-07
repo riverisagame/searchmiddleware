@@ -1,0 +1,6 @@
+datasources:
+  - name: main
+    dsn: "root:password@tcp(127.0.0.1:3306)/shop?charset=utf8mb4&parseTime=true&loc=Local"
+    max_open: 5
+    max_idle: 5
+    read_only: true

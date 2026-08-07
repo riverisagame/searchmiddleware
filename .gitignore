@@ -1,0 +1,28 @@
+# Go
+*.exe
+*.test
+*.out
+go.sum.bak
+
+# 运行时数据
+data/
+!data/.gitkeep
+
+# 前端
+web-ui/node_modules/
+web-ui/dist/
+internal/web/dist/
+
+# 日志
+*.log
+
+# 编辑器/系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 临时
+*.tmp
+*.bak
+.playwright-mcp/

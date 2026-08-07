@@ -1,0 +1,27 @@
+server:
+  api_port: 8090
+  gui_port: 8091
+  read_timeout: 10s
+
+security:
+  jwt_secret: change-me-in-production
+  token_expiry: 24h
+
+zinc:
+  clusters:
+    default:
+      - http://localhost:4080
+  default: default
+  username: admin
+  password: Complexpass#123
+
+sync:
+  batch_size: 500
+  max_parallel_indexes: 3
+  query_timeout: 60s
+  incremental_interval: 5m
+  full_rebuild_time: "02:00"
+
+env: dev
+storage: file
+data_dir: ./data
