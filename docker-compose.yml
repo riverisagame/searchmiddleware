@@ -1,0 +1,59 @@
+# 搜索中间件 + ZincSearch++ 部署编排
+# 用法：docker compose up -d
+# 定制版 Zinc 需先构建镜像：cd D:\claudeprj\zincsearch && docker build -t zincsearchplusplus:latest .
+
+services:
+  zinc:
+    image: zincsearchplusplus:latest
+    container_name: sm-zinc
+    restart: unless-stopped
+    environment:
+      ZINC_SERVER_ADDRESS: "0.0.0.0"
+      ZINC_SERVER_PORT: "4080"
+      ZINC_SERVER_AUTH_USER: "${ZINC_USER:-admin}"
+      ZINC_SERVER_AUTH_PASSWORD: "${ZINC_PASSWORD:-Complexpass#123}"
+      # 中文分析：jieba 后端
+      ZINC_ANALYSIS_BACKEND: "jieba"
+      # 拼音（零开发，Zinc 分析器层支持）
+      ZINC_ANALYSIS_PINYIN_FULL: "true"
+      ZINC_ANALYSIS_PINYIN_FIRST_LETTER: "true"
+      ZINC_ANALYSIS_PINYIN_KEEP_ORIGINAL: "true"
+      # 用户词典（汽修词典热加载）
+      ZINC_ANALYSIS_USER_DICT: "/data/dict/user/diy.txt"
+      # 同义词词典（查询期扩展，GUI 写文件后 POST /api/_reload/synonym）
+      ZINC_ANALYSIS_SYNONYM_PATH: "/data/dict/synonyms.txt"
+      ZINC_ANALYSIS_DICT_WATCH: "true"
+    ports:
+      - "4080:4080"
+    volumes:
+      - zinc-data:/data
+      - ./data/dict:/data/dict:ro
+
+  searchmiddleware:
+    image: golang:1.26-alpine
+    container_name: sm-middleware
+    restart: unless-stopped
+    command: >
+      sh -c "go build -o /app/searchmiddleware ./cmd/server &&
+             /app/searchmiddleware -config /app/config/app.yaml"
+    working_dir: /app
+    environment:
+      SEARCH_ENV: "${SEARCH_ENV:-dev}"
+    ports:
+      - "8090:8090"   # API
+      - "8091:8091"   # Web GUI
+    volumes:
+      - .:/app
+      - sm-data:/app/data
+    depends_on:
+      - zinc
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  zinc-data:
+  sm-data:
