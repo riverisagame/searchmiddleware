@@ -67,6 +67,7 @@ export const api = {
   listSynonyms: () => request('GET', '/api/v1/synonyms'),
   createSynonym: (s) => request('POST', '/api/v1/synonyms', s),
   deleteSynonym: (id) => request('DELETE', '/api/v1/synonyms/' + id),
+  syncSynonymsToZinc: () => request('POST', '/api/v1/synonyms/sync'),
 
   listUsers: () => request('GET', '/api/v1/users'),
   createUser: (u) => request('POST', '/api/v1/users', u),

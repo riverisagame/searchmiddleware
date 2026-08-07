@@ -19,6 +19,7 @@ type AppConfig struct {
 	Storage  string         `yaml:"storage"`
 	Env      string         `yaml:"env"`
 	DataDir  string         `yaml:"data_dir"`
+	Synonyms string         `yaml:"synonyms_file"` // 同义词导出文件（Zinc SynonymPath 共享卷）
 }
 
 type ServerConfig struct {
@@ -180,6 +181,9 @@ func setDefaults(cfg *AppConfig) {
 	}
 	if cfg.DataDir == "" {
 		cfg.DataDir = "./data"
+	}
+	if cfg.Synonyms == "" {
+		cfg.Synonyms = "./data/dict/synonyms.txt"
 	}
 	if cfg.Env == "" {
 		cfg.Env = "dev"

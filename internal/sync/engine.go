@@ -136,13 +136,14 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 	}
 
 	durationMs := time.Since(startTime).Milliseconds()
-	throughput := float64(result.Count) / (float64(durationMs) / 1000)
 
 	if err != nil {
-		e.logSync(indexName, syncType, "failed", 0, durationMs, throughput, err.Error())
+		e.logSync(indexName, syncType, "failed", 0, durationMs, 0, err.Error())
 		e.createAlert(indexName, "ERROR", fmt.Sprintf("sync failed: %v", err))
 		return err
 	}
+
+	throughput := float64(result.Count) / (float64(durationMs) / 1000)
 
 	if syncType == "full" {
 		if err := e.lifecycle.PrepareWriteIndex(indexName, writeIndex, result.Count); err != nil {

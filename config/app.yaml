@@ -25,3 +25,4 @@ sync:
 env: dev
 storage: file
 data_dir: ./data
+synonyms_file: ./data/dict/synonyms.txt

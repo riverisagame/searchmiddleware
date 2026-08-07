@@ -81,6 +81,20 @@ func main() {
 
 	apiServer := api.NewServer(appCfg, metaDB, zincClient, syncEngine, authMgr, indexCfgs, dsMap)
 
+	// Q15 热加载：监听 config/indexes/*.yaml 变更 → 校验 → 回灌 DB → 更新内存
+	if watcher, err := config.NewWatcher(*indexesDir, func(name string) {
+		if err := apiServer.ReloadIndexConfigs(); err != nil {
+			log.Printf("[config-watch] reload %s failed: %v", name, err)
+			return
+		}
+		log.Printf("[config-watch] %s reloaded，索引需重建", name)
+	}); err == nil {
+		watcher.Start()
+		defer watcher.Stop()
+	} else {
+		log.Printf("[config-watch] init failed: %v", err)
+	}
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", appCfg.Server.APIPort),
 		Handler: apiServer.Router(),

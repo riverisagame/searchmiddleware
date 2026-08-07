@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -90,6 +93,7 @@ func (s *Server) Router() *gin.Engine {
 		v1.POST("/synonyms", s.adminOnly(s.handleCreateSynonym))
 		v1.PUT("/synonyms/:id", s.adminOnly(s.handleUpdateSynonym))
 		v1.DELETE("/synonyms/:id", s.adminOnly(s.handleDeleteSynonym))
+		v1.POST("/synonyms/sync", s.adminOnly(s.handleSyncSynonymsToZinc))
 
 		v1.GET("/metrics", s.adminOrViewer(s.handleMetrics))
 
@@ -421,6 +425,11 @@ func (s *Server) handleDeleteIndex(c *gin.Context) {
 }
 
 // reloadIndexConfigs 热加载：重读配置文件 → 回灌 DB（Q15：文件唯一真相）
+// ReloadIndexConfigs 热加载：重读配置文件 → 校验 → 回灌 DB → 更新内存（供 fsnotify watcher 与 API 共用）
+func (s *Server) ReloadIndexConfigs() error {
+	return s.reloadIndexConfigs()
+}
+
 func (s *Server) reloadIndexConfigs() error {
 	cfgs, err := config.LoadIndexConfig(s.indexesDir)
 	if err != nil {
@@ -590,6 +599,52 @@ func (s *Server) handleDeleteSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }
 
+// handleSyncSynonymsToZinc 同义词闭环：synonyms 表 → Zinc 格式文件（原子写）→ 触发 Zinc 重载
+// REQ-002：Zinc 提供 POST /api/_reload/synonym，GUI 增删改后调用此端点即时生效
+func (s *Server) handleSyncSynonymsToZinc(c *gin.Context) {
+	if err := s.exportSynonymsToZinc(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok", "data": gin.H{"synced": true}})
+}
+
+func (s *Server) exportSynonymsToZinc() error {
+	var synonyms []metadata.Synonym
+	s.meta.Find(&synonyms)
+
+	var buf strings.Builder
+	for _, syn := range synonyms {
+		var list []string
+		if err := jsonUnmarshal(syn.Synonyms, &list); err != nil || len(list) == 0 {
+			continue
+		}
+		// Zinc 格式：逗号分隔双向等价（processor_synonym.go）
+		line := syn.Word + "," + strings.Join(list, ",")
+		buf.WriteString(line + "\n")
+	}
+
+	// 原子写（Q4 模式）：.tmp → rename
+	dir := filepath.Dir(s.cfg.Synonyms)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	tmp := s.cfg.Synonyms + ".tmp"
+	if err := os.WriteFile(tmp, []byte(buf.String()), 0644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, s.cfg.Synonyms); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+
+	// 触发 Zinc 热重载（REQ-002）
+	if s.zinc == nil {
+		return nil
+	}
+	return s.zinc.ReloadSynonym(s.cfg.Zinc.Default)
+}
+
 func (s *Server) handleListSynonyms(c *gin.Context) {
 	var synonyms []metadata.Synonym
 	s.meta.Find(&synonyms)
@@ -607,6 +662,9 @@ func (s *Server) handleCreateSynonym(c *gin.Context) {
 		return
 	}
 	s.reloadSynonyms()
+	if err := s.exportSynonymsToZinc(); err != nil {
+		log.Printf("synonym sync to zinc failed: %v", err)
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": syn})
 }
 
@@ -623,6 +681,9 @@ func (s *Server) handleUpdateSynonym(c *gin.Context) {
 		"indexes":  syn.Indexes,
 	})
 	s.reloadSynonyms()
+	if err := s.exportSynonymsToZinc(); err != nil {
+		log.Printf("synonym sync to zinc failed: %v", err)
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }
 
@@ -630,6 +691,9 @@ func (s *Server) handleDeleteSynonym(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	s.meta.Delete(&metadata.Synonym{}, id)
 	s.reloadSynonyms()
+	if err := s.exportSynonymsToZinc(); err != nil {
+		log.Printf("synonym sync to zinc failed: %v", err)
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }
 

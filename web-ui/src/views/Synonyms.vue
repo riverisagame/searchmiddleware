@@ -3,7 +3,10 @@
     <template #header>
       <div style="display: flex; justify-content: space-between; align-items: center">
         <span>同义词管理（查询期扩展，保存即生效）</span>
-        <el-button type="primary" size="small" @click="showDialog = true">新增</el-button>
+        <div>
+          <el-button size="small" @click="syncToZinc">同步到 Zinc</el-button>
+          <el-button type="primary" size="small" @click="showDialog = true">新增</el-button>
+        </div>
       </div>
     </template>
     <el-table :data="synonyms" v-loading="loading">
@@ -76,6 +79,15 @@ async function remove(row) {
   try {
     await api.deleteSynonym(row.id)
     load()
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
+async function syncToZinc() {
+  try {
+    await api.syncSynonymsToZinc()
+    ElMessage.success('已同步到 Zinc 并触发重载')
   } catch (e) {
     ElMessage.error(e.message)
   }
