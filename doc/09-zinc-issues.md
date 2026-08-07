@@ -310,3 +310,15 @@ Content-Type: application/json
 | SUG-004 DELETE .../_doc/:id?refresh=true 后立即搜索 | **total=1（删除立即可见）** ✅ |
 
 **结论**：两项均已修复（cf13113），修复方式与建议完全一致（AuthMiddleware + 复用 refreshTarget）。
+
+---
+
+## 新增提报（2026-08-07 第四轮）
+
+### BUG-007：terms 聚合 key 乱码（keyword + element_type 数值字段，P1）
+
+**现象**：category_ids（keyword+element_type:long）terms 聚合返回 key:  \u0001@6p\u0000...（字节乱码），期望 238。
+
+**根因**：ggregation.go:237 只看 prop.Type（keyword→TextValueSource），未考虑 prop.ElementType；写入侧（BUG-001 修复）element_type 数值按 NumericField 存储 → 聚合 TextValueSource 读数值字段返回原始字节 key。
+
+**完整分析**：D:\claudeprj\zincsearch\docs\issues\20260807_terms_agg_key_garbled.md（含最小修复：element_type 数值分支走 NumericValueSource + 验证用例）。
