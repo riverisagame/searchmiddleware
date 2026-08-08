@@ -368,3 +368,24 @@ Content-Type: application/json
 **推断**：显式指定 search analyzer 仍 0 命中 → 根因不在 analyzer 选择（18c61f3 修复点），而在**查询执行层**（bluge.MatchQuery 对同 position 多 token 的消费）。
 
 **跟进报告**：docs/issues/20260808_synonym_query_miss_followup.md（Zinc 仓库）
+
+---
+
+## BUG-008 根因锁定（2026-08-08 15:00，76974d0 构建 + debug 日志实测）
+
+**状态**：✅ **根因确认——HTTP 搜索永不触发 fast path**（非 analyzer 消费问题）
+
+| 项 | 结果 |
+|----|------|
+| HTTP 搜索 handset（含显式 jieba_search） | ❌ 0 命中 |
+| 76974d0 token 诊断日志（fastMatchQuery） | **0 条**（HTTP 从未触发） |
+| Zinc 团队单测（直接构造 *meta.Query） | ✅ 命中 |
+
+**源码根因**：
+1. `meta/query_dsl.go:119` `ZincQuery.Query interface{}` → HTTP 反序列化为 map
+2. `query/query.go:226` fast path 仅处理 `*meta.Query` → map 走普通 MatchQuery（无 synonym 消费）
+3. 普通路径无 token 日志（76974d0 仅加在 fastMatchQuery）
+
+**建议（提报 914a337）**：HTTP 入口将 map 转 `*meta.Query` 触发 fast path（方案 A），或普通路径实现 synonym 消费（方案 B）。
+
+**提报文档**：`docs/issues/20260808_synonym_root_cause_http_path.md`（Zinc 仓库，已提交 914a337）
