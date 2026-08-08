@@ -191,6 +191,20 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 		e.updateCursor(indexName, result.LastCursor)
 	}
 
+	// Q29 一级对账：增量同步成功后异步 COUNT 对比（秒级，偏差超阈值告警）
+	if syncType == "incremental" {
+		go func(idx string) {
+			if rec, err := e.ReconcileCount(idx); err == nil && rec != nil {
+				if rec.IndexCount > 0 && rec.DBValidCount > 0 {
+					dev := float64(rec.IndexCount-rec.DBValidCount) / float64(rec.DBValidCount)
+					if dev < -0.05 || dev > 0.05 {
+						e.createAlert(idx, "WARN", fmt.Sprintf("reconcile count drift: index=%d db=%d (%.1f%%)", rec.IndexCount, rec.DBValidCount, dev*100))
+					}
+				}
+			}
+		}(indexName)
+	}
+
 	if syncType == "full" {
 		expectedCount := e.getExpectedCount(indexName)
 		if expectedCount > 0 && float64(result.Count)/float64(expectedCount) < 0.9 {
