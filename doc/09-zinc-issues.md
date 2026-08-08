@@ -333,3 +333,21 @@ Content-Type: application/json
 | key_as_string（ES 兼容） | ✅ 同时返回 |
 
 **结论**：已修复（8b06228，含双重根因：value source 选择 + 多值消费）。修复方式与建议一致（element_type 数值 → NumericValueSource）。
+
+---
+
+## 新增提报（2026-08-08 第五轮）
+
+### BUG-008：同义词扩展 token 未参与查询（P0，功能假闭环）
+
+**现象**：analyze 层同义词扩展生效（_analyze 返回含同义词 token），但 match 搜索同义词 0 命中；原词命中正常。
+
+| 查询 | 结果 |
+|------|------|
+| 原词 手机 | ✅ 1 |
+| 同义词 handset | ❌ 0 |
+| 同义词 移动电话 | ❌ 0 |
+
+**根因方向**：查询路径（bluge.MatchQuery+SetAnalyzer）与 _analyze（engine 直接分析）脱节；扩展 token 同 position/偏移异常可能被丢弃。
+
+**完整复现**：D:\claudeprj\zincsearch\docs\issues\20260808_synonym_query_miss.md
