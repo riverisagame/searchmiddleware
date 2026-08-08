@@ -458,3 +458,10 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 - 提报：`docs/issues/20260808_sug007_http_fast_path.md`、`docs/issues/20260808_sug008_entries_merge_semantics.md`（Zinc 仓库）
 
 **Zinc 协作全部收尾**：BUG-002~008、REQ-002/003、SUG-003 全部闭环；SUG-007/008 为后续优化项。
+
+---
+
+## SUG-007/008 决策确认（2026-08-08 16:30）
+
+- **SUG-007**：✅ 接受（ParseQueryDSL 二次反序列化小改）；验收 = HTTP 日志出现 match query tokens
+- **SUG-008**：✅ 定为方案 B（覆盖 + 文档化）；当前代码已实现全部语义（entries 会话级替换 / reload 恢复文件 / watch 恢复），仅待 manual 文档化
