@@ -50,9 +50,9 @@ func (b *QueryBuilder) Build(req SearchRequest) (map[string]interface{}, error) 
 			filters = append(filters, map[string]interface{}{"term": map[string]interface{}{"site_id": *req.SiteID}})
 		}
 		if req.Filter != nil {
-			filterQuery := b.buildFilterQuery(req.Filter)
-			if filterQuery != nil {
-				filters = append(filters, filterQuery)
+			filterQueries := b.buildFilterQuery(req.Filter)
+			if filterQueries != nil {
+				filters = append(filters, filterQueries...)
 			}
 		}
 		if len(filters) > 0 {
@@ -196,14 +196,13 @@ func (b *QueryBuilder) buildKeywordQuery(keyword string) []interface{} {
 	return shouldQueries
 }
 
-func (b *QueryBuilder) buildFilterQuery(filter map[string]interface{}) map[string]interface{} {
+// buildFilterQuery 返回裸查询数组（Zinc bool.filter 数组元素格式，如 [{"terms":...},{"range":...}]）
+func (b *QueryBuilder) buildFilterQuery(filter map[string]interface{}) []interface{} {
 	if len(filter) == 0 {
 		return nil
 	}
 
-	boolFilter := map[string]interface{}{
-		"must": []map[string]interface{}{},
-	}
+	queries := []interface{}{}
 
 	for field, value := range filter {
 		fieldInfo, ok := b.indexCfg.Index.Fields[field]
@@ -217,8 +216,7 @@ func (b *QueryBuilder) buildFilterQuery(filter map[string]interface{}) map[strin
 				continue
 			}
 			if fieldInfo.Type == "keyword" || fieldInfo.Type == "integer" || fieldInfo.Type == "long" {
-				boolFilter["must"] = append(boolFilter["must"].([]map[string]interface{}),
-					map[string]interface{}{"terms": map[string]interface{}{field: v}})
+				queries = append(queries, map[string]interface{}{"terms": map[string]interface{}{field: v}})
 			}
 		case map[string]interface{}:
 			rangeQuery := map[string]interface{}{}
@@ -229,22 +227,20 @@ func (b *QueryBuilder) buildFilterQuery(filter map[string]interface{}) map[strin
 				}
 			}
 			if len(rangeQuery) > 0 {
-				boolFilter["must"] = append(boolFilter["must"].([]map[string]interface{}),
-					map[string]interface{}{"range": map[string]interface{}{field: rangeQuery}})
+				queries = append(queries, map[string]interface{}{"range": map[string]interface{}{field: rangeQuery}})
 			}
 		default:
 			if fieldInfo.Type == "keyword" || fieldInfo.Type == "integer" || fieldInfo.Type == "long" {
-				boolFilter["must"] = append(boolFilter["must"].([]map[string]interface{}),
-					map[string]interface{}{"term": map[string]interface{}{field: value}})
+				queries = append(queries, map[string]interface{}{"term": map[string]interface{}{field: value}})
 			}
 		}
 	}
 
-	if len(boolFilter["must"].([]map[string]interface{})) == 0 {
+	if len(queries) == 0 {
 		return nil
 	}
 
-	return boolFilter
+	return queries
 }
 
 func (b *QueryBuilder) buildSort(sortStr string) interface{} {

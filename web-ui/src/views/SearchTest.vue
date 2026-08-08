@@ -62,8 +62,8 @@
         <el-row :gutter="16">
           <el-col v-for="(agg, name) in result.aggs" :key="name" :span="12">
             <el-card shadow="never" size="small" style="margin-bottom: 12px">
-              <template #header>{{ name }}</template>
-              <div v-for="b in agg.buckets" :key="String(b.key)" class="bucket-row">
+              <template #header>{{ name }}<span class="drill-tip">（点击 bucket 下钻过滤）</span></template>
+              <div v-for="b in agg.buckets" :key="String(b.key)" class="bucket-row clickable" @click="drillDown(name, b)">
                 <span>{{ b.key }}</span>
                 <el-progress :percentage="bucketPct(b.doc_count)" :format="() => b.doc_count" :stroke-width="14" />
               </div>
@@ -103,6 +103,25 @@ function bucketPct(n) {
   return max ? Math.round((n / max) * 100) : 0
 }
 
+// 下钻：点击 bucket → 从 aggs JSON 解析字段名 → 更新 filter（覆盖同名过滤）→ 重新搜索
+function drillDown(aggName, bucket) {
+  let field = null
+  try {
+    const aggs = JSON.parse(form.aggs || '{}')
+    field = aggs[aggName]?.field || null
+  } catch { /* aggs JSON 解析失败则忽略 */ }
+  if (!field) {
+    ElMessage.warning('无法解析该聚合的字段名（检查 aggs JSON）')
+    return
+  }
+  const key = typeof bucket.key === 'string' ? bucket.key : String(bucket.key)
+  let filter = {}
+  try { filter = form.filter ? JSON.parse(form.filter) : {} } catch { /* 无效 filter 重置 */ }
+  filter[field] = [key] // 覆盖该字段过滤
+  form.filter = JSON.stringify(filter)
+  search()
+}
+
 async function search() {
   if (!form.index) return ElMessage.warning('请选择索引')
   const params = { index: form.index, limit: 20 }
@@ -131,4 +150,7 @@ onMounted(async () => {
 .field-key { color: #909399; margin-right: 6px; }
 .bucket-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .bucket-row span { min-width: 80px; }
+.clickable { cursor: pointer; }
+.clickable:hover { background: #f5f7fa; border-radius: 4px; }
+.drill-tip { color: #909399; font-size: 12px; font-weight: normal; margin-left: 8px; }
 </style>
