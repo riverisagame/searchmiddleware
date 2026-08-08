@@ -12,20 +12,27 @@ import (
 )
 
 type AppConfig struct {
-	Server   ServerConfig   `yaml:"server"`
-	Security SecurityConfig `yaml:"security"`
-	Zinc     ZincConfig     `yaml:"zinc"`
-	Sync     SyncConfig     `yaml:"sync"`
-	Storage  string         `yaml:"storage"`
-	Env      string         `yaml:"env"`
-	DataDir  string         `yaml:"data_dir"`
-	Synonyms string         `yaml:"synonyms_file"` // 同义词导出文件（Zinc SynonymPath 共享卷）
+	Server    ServerConfig   `yaml:"server"`
+	RateLimit RateLimitConfig `yaml:"rate_limit"`
+	Security  SecurityConfig `yaml:"security"`
+	Zinc      ZincConfig     `yaml:"zinc"`
+	Sync      SyncConfig     `yaml:"sync"`
+	Storage   string         `yaml:"storage"`
+	Env       string         `yaml:"env"`
+	DataDir   string         `yaml:"data_dir"`
+	Synonyms  string         `yaml:"synonyms_file"` // ͬ��ʵ����ļ���Zinc SynonymPath ��������
 }
 
 type ServerConfig struct {
 	APIPort     int    `yaml:"api_port"`
 	GUIPort     int    `yaml:"gui_port"`
 	ReadTimeout string `yaml:"read_timeout"`
+}
+
+// RateLimitConfig 搜索 API 限流（Q39 429 观测配套，roadmap 12）
+type RateLimitConfig struct {
+	Enabled bool `yaml:"enabled"`
+	QPS     int  `yaml:"qps"` // 每 IP 每秒请求上限（固定窗口）
 }
 
 type SecurityConfig struct {

@@ -68,7 +68,7 @@ func (s *Server) Router() *gin.Engine {
 	r.GET("/health", s.handleHealth)
 	r.POST("/api/v1/auth/login", s.handleLogin)
 
-	v1 := r.Group("/api/v1", s.authMiddleware())
+	v1 := r.Group("/api/v1", s.authMiddleware(), s.rateLimitMiddleware())
 	{
 		v1.GET("/search", s.handleSearch)
 		v1.POST("/notify", s.handleNotify)

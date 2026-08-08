@@ -18,6 +18,7 @@ type searchMetrics struct {
 	buckets      []float64
 	bucketCnt    []int64
 	errors5xx    int64
+	errors429    int64
 	keywords     map[string]int64
 }
 
@@ -48,6 +49,13 @@ func (m *searchMetrics) observe(keyword string, dur time.Duration, err5xx bool) 
 		}
 	}
 	m.bucketCnt[len(m.buckets)]++
+}
+
+// observe429 记录一次限流拒绝
+func (m *searchMetrics) observe429() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.errors429++
 }
 
 // topKeywords 返回 Top N 关键词（按次数降序）
@@ -100,6 +108,7 @@ func (m *searchMetrics) writePrometheus(buf *strings.Builder) {
 
 	buf.WriteString("# HELP sm_search_errors_total 搜索错误次数\n# TYPE sm_search_errors_total counter\n")
 	fmt.Fprintf(buf, "sm_search_errors_total{type=\"5xx\"} %d\n", m.errors5xx)
+	fmt.Fprintf(buf, "sm_search_errors_total{type=\"429\"} %d\n", m.errors429)
 
 	buf.WriteString("# HELP sm_search_top_keywords 搜索关键词次数\n# TYPE sm_search_top_keywords counter\n")
 	type kv struct {
