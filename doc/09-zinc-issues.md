@@ -448,3 +448,13 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 **语义确认**：entries 推送后**替代**文件词典（SetEntries 覆盖语义，handset 文件条目不叠加）——符合"内容级更新"设计；如需合并语义可另行提需求。
 
 **副作用提示**：修复覆盖文件条目（快照优先），已在验证中确认符合预期。
+
+---
+
+## SUG-007/008 提报（2026-08-08 16:10）
+
+- **SUG-007**（性能/可观测性）：HTTP 入口 map Query → `*meta.Query` 触发 fast path（token 日志/短路优化生产路径可用），二次反序列化 + fallback 保兼容
+- **SUG-008**（语义）：entries 覆盖文件词典；建议合并（A）或文档化覆盖（B）
+- 提报：`docs/issues/20260808_sug007_http_fast_path.md`、`docs/issues/20260808_sug008_entries_merge_semantics.md`（Zinc 仓库）
+
+**Zinc 协作全部收尾**：BUG-002~008、REQ-002/003、SUG-003 全部闭环；SUG-007/008 为后续优化项。
