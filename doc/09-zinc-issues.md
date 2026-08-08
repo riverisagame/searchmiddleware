@@ -404,3 +404,19 @@ Content-Type: application/json
 3. `_analyze` 中 BOM 不可见，肉眼验证 token 需 hexdump
 
 **修正**：此前"HTTP 不走 fast path 根因"（914a337）是真实架构观察，但非 0 命中根因；普通路径 synonym 消费正常（690a3f2 确认）。
+
+---
+
+## 全量真实场景验证（2026-08-08 15:40，Zinc 690a3f2 + 无 BOM 词典）✅ 全绿
+
+| 场景 | 结果 |
+|------|------|
+| 同义词（移动电话/handset/原词手机） | ✅ 全命中 |
+| 拼音（shouji=1, sj=1） | ✅ |
+| 高亮（发动机 → `<mark>`） | ✅ |
+| mapping 热更新新字段 | ✅ |
+| bool filter 嵌套 | ✅ |
+| BUG-007 numeric 聚合 key | ✅ |
+| Analyze 扩展（jieba_search 含 手机/handset） | ✅ |
+
+离线 Skip 项（Boost 系/BUG002-004/REQ003/SUG003）不受影响。
