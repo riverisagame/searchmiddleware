@@ -465,3 +465,22 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 
 - **SUG-007**：✅ 接受（ParseQueryDSL 二次反序列化小改）；验收 = HTTP 日志出现 match query tokens
 - **SUG-008**：✅ 定为方案 B（覆盖 + 文档化）；当前代码已实现全部语义（entries 会话级替换 / reload 恢复文件 / watch 恢复），仅待 manual 文档化
+
+---
+
+## SUG-007/008 修复验证（2026-08-08 16:40）✅ 全部通过（3ebf357）
+
+### SUG-007（HTTP fast path）
+- **HTTP 搜索触发 fast path**：日志出现 "match query tokens after analyzer"（修复前 0 条）✅
+- 功能回归：同义词/拼音/高亮/mapping-add 全过 ✅
+- Zinc 单测 4/4（fast path 命中、归一化、msm 回退、多键回退）
+
+### SUG-008（覆盖 + 文档化语义）
+黑盒语义闭环 ✅：
+| 步骤 | 结果 |
+|------|------|
+| 文件词典 handset | 1 |
+| entries 替换后（无 handset） | handset=0、移动电话=1（会话级替换）|
+| 无 entries reload | handset=1（恢复文件）|
+
+**Zinc 协作全部闭环**：BUG-002~008、REQ-002/003、SUG-003/007/008 全部修复并验证。
