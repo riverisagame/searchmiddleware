@@ -63,3 +63,9 @@
 - github.com/golang-jwt/jwt/v5
 - golang.org/x/crypto（bcrypt）
 - github.com/fsnotify/fsnotify
+
+## 闭环进度（2026-08-08）
+
+- 任务 12 限流：✅ 已实现（fixed-window per-IP，config-gated，429 挂钩 Q39 指标）
+- 任务 14 指标：✅ 已实现（Q39：total/latency histogram/top50/5xx/429）
+- 待办：任务 23 车鲸鱼接入（Q41 业务确认）
