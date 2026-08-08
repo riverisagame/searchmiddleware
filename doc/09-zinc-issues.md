@@ -389,3 +389,18 @@ Content-Type: application/json
 **建议（提报 914a337）**：HTTP 入口将 map 转 `*meta.Query` 触发 fast path（方案 A），或普通路径实现 synonym 消费（方案 B）。
 
 **提报文档**：`docs/issues/20260808_synonym_root_cause_http_path.md`（Zinc 仓库，已提交 914a337）
+
+---
+
+## BUG-008 最终结论（2026-08-08 15:20）：真根因 = synonyms.txt BOM 污染（环境问题，Zinc 修复全部有效）
+
+**回归验证（690a3f2 构建 + 无 BOM 词典）**：handset=1、移动电话=1、手机=1 ✅ 全部命中
+
+**真根因**：本机用 PowerShell `Set-Content -Encoding UTF8` 写 synonyms.txt → **带 UTF-8 BOM** → 首个词"手机"被污染为 `\uFEFF手机` → synonym 扩展 token 与索引 token 永不匹配。Zinc 四层测试通过（os.WriteFile 无 BOM）vs 本机失败（BOM）的差异即在于此。
+
+**复盘教训（防复发）**：
+1. 写 synonyms.txt 必须 **UTF-8 无 BOM**（可用 Go/编辑器"无 BOM"选项；禁止 PowerShell Set-Content UTF8）
+2. 排查 synonym 问题时先查文件头字节（EF BB BF）
+3. `_analyze` 中 BOM 不可见，肉眼验证 token 需 hexdump
+
+**修正**：此前"HTTP 不走 fast path 根因"（914a337）是真实架构观察，但非 0 命中根因；普通路径 synonym 消费正常（690a3f2 确认）。
