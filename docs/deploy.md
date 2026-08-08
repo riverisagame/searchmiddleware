@@ -77,6 +77,8 @@ curl -X POST http://localhost:4080/api/_reload/synonym -u admin:Complexpass#123
 | 文件 | 内容 | 敏感项 |
 |------|------|--------|
 | `config/app.yaml` | 服务/安全/同步/Zinc 连接 | `security.jwt_secret`（生产必改，禁止提交 git） |
+
+限流（`config/app.yaml` `rate_limit`）：`enabled: true` + `qps: 100`（每 IP 每秒，固定窗口；命中返回 429 并计入 `/metrics` `sm_search_errors_total{type="429"}`）。生产建议按实际 QPS 调参，反代场景依赖 `X-Forwarded-For`。
 | `config/datasources.yaml` | 数据源 DSN | 数据库密码（建议 `read_dsn` 只读账号） |
 | `config/indexes/*.yaml` | 索引定义（热重载） | — |
 
