@@ -495,3 +495,15 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 
 **建议**：后端字段级 search analyzer 回退（方案 A）或 UI 发 match/显式 analyzer（方案 B）。
 - 提报：`docs/issues/20260808_bug009_query_string_cjk.md`（Zinc 仓库）
+
+---
+
+## BUG-009 部分修复验证（2026-08-08 21:10，6fc34d4）
+
+| 查询 | 结果 |
+|------|------|
+| query_string 中文裸词（UI 搜索框路径） | ✅ 修复（1） |
+| query_string 带字段 / 拼音回归 | ✅ |
+| **multi_match 无 fields** | ❌ 仍 0（未覆盖，已跟进提报） |
+
+**状态**：UI 搜索框（query_string 路径）已可用；multi_match 无 fields 待 Zinc 修复（建议回填全字段或参数报错）。
