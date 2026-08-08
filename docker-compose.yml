@@ -28,6 +28,12 @@ services:
     volumes:
       - zinc-data:/data
       - ./data/dict:/data/dict:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   searchmiddleware:
     image: golang:1.26-alpine

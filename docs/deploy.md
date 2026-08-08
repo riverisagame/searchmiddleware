@@ -58,7 +58,32 @@ curl -X POST http://localhost:4080/api/_reload/synonym -u admin:Complexpass#123
 
 - `GET /api/v1/metrics`：Prometheus 文本格式（索引文档数/同步任务计数）
 - GUI 告警中心：同步失败/对账差异告警
-- Zinc `/healthz`：存活探针
+- Zinc `/healthz`：存活探针（compose 已配置 healthcheck）
+
+## 日志采集
+
+| 来源 | 容器 | 格式 | 说明 |
+|------|------|------|------|
+| API/同步/调度 | sm-middleware | Go 标准库 `log`（stdout 文本行） | `docker logs -f sm-middleware`；无级别过滤，生产接 Loki/ELK 按关键词 |
+| Zinc | sm-zinc | zerolog JSON（stdout） | `LOG_LEVEL=debug` 开诊断（含 match query tokens）；生产 info |
+| Zinc 搜索审计 | sm-zinc | debug 级 "Search Query Audit" 行 | 调 `LOG_LEVEL=debug` 可查每次搜索的 DSL/耗时/命中数 |
+
+> 注：searchmiddleware 目前使用标准库 log（无日志级别/结构化字段）；如需结构化日志与级别控制，属待实现需求。
+
+## 配置与密钥管理
+
+**配置唯一真相 = YAML 文件**（`-config/-datasources/-indexes` 参数指定路径，无环境变量覆盖机制）：
+
+| 文件 | 内容 | 敏感项 |
+|------|------|--------|
+| `config/app.yaml` | 服务/安全/同步/Zinc 连接 | `security.jwt_secret`（生产必改，禁止提交 git） |
+| `config/datasources.yaml` | 数据源 DSN | 数据库密码（建议 `read_dsn` 只读账号） |
+| `config/indexes/*.yaml` | 索引定义（热重载） | — |
+
+生产部署建议：
+- `jwt_secret` / DSN 通过 **Docker Secret 或 KMS 生成文件后卷挂载**覆盖默认配置，不入 git
+- Zinc 侧凭据由 compose 环境变量注入（`ZINC_USER`/`ZINC_PASSWORD`，Zinc 原生支持 env）
+- 如需 searchmiddleware 的 env 覆盖机制（如 `SEARCH_JWT_SECRET`），属待实现需求，可提 issue
 
 ## 车鲸鱼接入（PHP）
 
