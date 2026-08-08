@@ -520,3 +520,18 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 | 拼音回归 / 负例 | ✅ |
 
 **闭环**：GUI 中文搜索 + query_string/multi_match 全字段搜索全部可用。
+
+---
+
+## UI 全链路实测（2026-08-08 22:25）✅ + SUG-009 提报
+
+**UI 实测结果**：
+| 功能 | 状态 |
+|------|------|
+| 浏览/分页（20/页）/时间直方图/导出 | ✅ 正常 |
+| **中文搜索（BUG-009 回归，UI 层）** | ✅ Found 1 hits |
+| ExplainStudio（分词诊断） | ⚠️ 线上缺失（dist 过期） |
+
+**SUG-009 提报**：web/dist（6-29）比 src（7-29）旧 1 个月，embed 产物静默过期（ExplainStudio 未进 exe）；建议发布前强制 rebuild + CI 时间戳校验。
+- 提报：`docs/issues/20260808_sug009_ui_dist_stale.md`（Zinc 仓库）
+- 提示：UI 默认 30 分钟时间窗，旧数据需在时间选择器扩大范围（Kibana 式设计，非 bug）
