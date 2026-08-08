@@ -35,6 +35,7 @@ type Server struct {
 	dataSources map[string]*sql.DB
 	synonyms    map[string][]string
 	engine2     *sync.Engine
+	searchMet   *searchMetrics // Q39 搜索观测
 }
 
 func NewServer(
@@ -56,6 +57,7 @@ func NewServer(
 		indexesDir:  "config/indexes",
 		dataSources: dsMap,
 		synonyms:    loadSynonyms(meta),
+		searchMet:   newSearchMetrics(),
 	}
 }
 
@@ -215,6 +217,13 @@ func (s *Server) adminOrViewer(h gin.HandlerFunc) gin.HandlerFunc {
 }
 
 func (s *Server) handleSearch(c *gin.Context) {
+	start := time.Now()
+	keyword := c.Query("keyword")
+	searchErr5xx := false
+	defer func() {
+		s.searchMet.observe(keyword, time.Since(start), searchErr5xx)
+	}()
+
 	indexName := c.Query("index")
 	if indexName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "index required"})
@@ -234,7 +243,7 @@ func (s *Server) handleSearch(c *gin.Context) {
 	qb := query.NewQueryBuilder(indexCfg, s.synonyms)
 	req := query.SearchRequest{
 		Index:     indexName,
-		Keyword:   c.Query("keyword"),
+		Keyword:   keyword,
 		Page:      page,
 		Limit:     limit,
 		Sort:      c.Query("sort"),
@@ -270,12 +279,14 @@ func (s *Server) handleSearch(c *gin.Context) {
 	readAlias := s.envPrefix() + indexName
 	resp, err := s.zinc.Search(readAlias, body, indexCfg.Index.ZincCluster)
 	if err != nil {
+		searchErr5xx = true
 		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 50001, "msg": "zinc unavailable"})
 		return
 	}
 
 	result, err := qb.ParseResponse(resp)
 	if err != nil {
+		searchErr5xx = true
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
 		return
 	}
@@ -705,7 +716,7 @@ func (s *Server) reloadSynonyms() {
 func (s *Server) handleMetrics(c *gin.Context) {
 	var buf strings.Builder
 	buf.WriteString("# HELP sm_search_total 搜索请求累计\n# TYPE sm_search_total counter\n")
-	buf.WriteString("sm_search_total 0\n")
+	s.searchMet.writePrometheus(&buf)
 
 	buf.WriteString("# HELP sm_index_docs 索引文档数（最近一次对账 COUNT）\n# TYPE sm_index_docs gauge\n")
 	var reconciles []metadata.ReconcileResult
