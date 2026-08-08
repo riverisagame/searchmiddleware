@@ -507,3 +507,16 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 | **multi_match 无 fields** | ❌ 仍 0（未覆盖，已跟进提报） |
 
 **状态**：UI 搜索框（query_string 路径）已可用；multi_match 无 fields 待 Zinc 修复（建议回填全字段或参数报错）。
+
+---
+
+## BUG-009 全部修复验证（2026-08-08 21:20，e2be85b）✅ 全过
+
+| 查询 | 结果 |
+|------|------|
+| query_string 中文裸词（UI 路径） | ✅ 1 |
+| multi_match 无 fields（中文/keyword） | ✅ 1 |
+| multi_match 带 fields | ✅ 1 |
+| 拼音回归 / 负例 | ✅ |
+
+**闭环**：GUI 中文搜索 + query_string/multi_match 全字段搜索全部可用。
