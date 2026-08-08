@@ -322,3 +322,14 @@ Content-Type: application/json
 **根因**：ggregation.go:237 只看 prop.Type（keyword→TextValueSource），未考虑 prop.ElementType；写入侧（BUG-001 修复）element_type 数值按 NumericField 存储 → 聚合 TextValueSource 读数值字段返回原始字节 key。
 
 **完整分析**：D:\claudeprj\zincsearch\docs\issues\20260807_terms_agg_key_garbled.md（含最小修复：element_type 数值分支走 NumericValueSource + 验证用例）。
+
+---
+
+## BUG-007 复查（2026-08-08 09:15，8b06228）
+
+| 验证项 | 结果 |
+|--------|------|
+| element_type:long 字段 terms 聚合 key | **数值 238/239/240**（修复前为字节乱码 \u0001@6p）✅ |
+| key_as_string（ES 兼容） | ✅ 同时返回 |
+
+**结论**：已修复（8b06228，含双重根因：value source 选择 + 多值消费）。修复方式与建议一致（element_type 数值 → NumericValueSource）。
