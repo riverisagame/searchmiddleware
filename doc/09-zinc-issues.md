@@ -431,3 +431,20 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 - 提报：`docs/issues/20260808_req003_bare_start_entries.md`（Zinc 仓库）
 
 **已知架构限制**（非缺陷）：BUG-002 Bluge boost 为 index-time，存量文档需 re-index（已记录）。
+
+---
+
+## REQ-003 修复验证（2026-08-08 16:00）✅ 通过（真裸启动黑盒）
+
+**修复状态**：Zinc 工作区已实施（全局快照 + 注册继承 + 空注册表返回展开数），**未提交**（待 Zinc 团队 commit）
+
+| 验证项 | 结果 |
+|--------|------|
+| 真裸启动（无索引、无 processor）POST entries | ✅ **entries=5**（修复前静默 0） |
+| 单测（BareStart/WithRegistered/EmptyClears） | ✅ 3/3 PASS |
+| 建索引后新 processor 继承快照（搜"移动电话"） | ✅ 命中 |
+| 原词"手机" | ✅ 命中 |
+
+**语义确认**：entries 推送后**替代**文件词典（SetEntries 覆盖语义，handset 文件条目不叠加）——符合"内容级更新"设计；如需合并语义可另行提需求。
+
+**副作用提示**：修复覆盖文件条目（快照优先），已在验证中确认符合预期。
