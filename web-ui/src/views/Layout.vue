@@ -19,14 +19,21 @@
     <el-container>
       <el-header class="header">
         <span class="page-title">{{ $route.meta.title || '' }}</span>
-        <el-dropdown @command="onCommand">
-          <span class="user">{{ auth.user?.username }}（{{ auth.user?.role }}）</span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <div class="header-right">
+          <el-tooltip :content="isDark ? '切换到亮色' : '切换到暗色'">
+            <el-button circle size="small" @click="toggleTheme">
+              <el-icon><Moon v-if="!isDark" /><Sunny v-else /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-dropdown @command="onCommand">
+            <span class="user">{{ auth.user?.username }}（{{ auth.user?.role }}）</span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
       </el-header>
       <el-main class="main">
         <router-view />
@@ -36,12 +43,20 @@
 </template>
 
 <script setup>
-import { Odometer, Refresh, Timer, Document, Checked, Setting, Link, Bell, User, Search } from '@element-plus/icons-vue'
+import { ref, onMounted } from 'vue'
+import { Odometer, Refresh, Timer, Document, Checked, Setting, Link, Bell, User, Search, Moon, Sunny } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
+const isDark = ref(document.documentElement.classList.contains('dark'))
+
+function toggleTheme() {
+  isDark.value = !isDark.value
+  document.documentElement.classList.toggle('dark', isDark.value)
+  localStorage.setItem('sm_theme', isDark.value ? 'dark' : 'light')
+}
 
 function onCommand(cmd) {
   if (cmd === 'logout') {
@@ -54,8 +69,10 @@ function onCommand(cmd) {
 <style scoped>
 .aside { background: #001529; }
 .logo { color: #fff; font-size: 18px; font-weight: 600; text-align: center; padding: 18px 0; }
-.header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eee; }
+.header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--el-border-color-light); }
+.header-right { display: flex; align-items: center; gap: 12px; }
 .page-title { font-size: 16px; font-weight: 600; }
-.user { cursor: pointer; color: #409eff; }
-.main { background: #f5f7fa; }
+.user { cursor: pointer; color: var(--el-color-primary); }
+.main { background: var(--el-bg-color-page); }
+html.dark .header { border-bottom-color: #2c2c2d; }
 </style>
