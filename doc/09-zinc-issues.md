@@ -351,3 +351,20 @@ Content-Type: application/json
 **根因方向**：查询路径（bluge.MatchQuery+SetAnalyzer）与 _analyze（engine 直接分析）脱节；扩展 token 同 position/偏移异常可能被丢弃。
 
 **完整复现**：D:\claudeprj\zincsearch\docs\issues\20260808_synonym_query_miss.md
+
+---
+
+## BUG-008 跟进（2026-08-08 12:00，18c61f3 实测）
+
+**状态**：⚠️ **18c61f3 修复未生效**（最新代码重建实测）
+
+| 场景 | 结果 |
+|------|------|
+| 原词 手机 | ✅ 1 |
+| 同义词 handset（默认） | ❌ 0 |
+| 同义词 handset（**显式 jieba_search**） | ❌ **0** |
+| _analyze（jieba_search） | ✅ 扩展 token 正常 |
+
+**推断**：显式指定 search analyzer 仍 0 命中 → 根因不在 analyzer 选择（18c61f3 修复点），而在**查询执行层**（bluge.MatchQuery 对同 position 多 token 的消费）。
+
+**跟进报告**：docs/issues/20260808_synonym_query_miss_followup.md（Zinc 仓库）
