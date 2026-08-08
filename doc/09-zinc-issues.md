@@ -420,3 +420,14 @@ Content-Type: application/json
 | Analyze 扩展（jieba_search 含 手机/handset） | ✅ |
 
 离线 Skip 项（Boost 系/BUG002-004/REQ003/SUG003）不受影响。
+
+---
+
+## 4080 系积压验证全跑（2026-08-08 16:00）✅ 17/17 PASS
+
+Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、KeywordArray、REQ003、SUG003 全部通过。
+
+**唯一未完成项**：REQ-003 裸启动（无索引）时 synonym entries API 静默返回 0（建索引后正常 5 条）——**代码级确定性缺陷**，已提报 Zinc（含全局快照修复方案）。
+- 提报：`docs/issues/20260808_req003_bare_start_entries.md`（Zinc 仓库）
+
+**已知架构限制**（非缺陷）：BUG-002 Bluge boost 为 index-time，存量文档需 re-index（已记录）。
