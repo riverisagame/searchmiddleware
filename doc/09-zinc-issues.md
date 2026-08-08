@@ -484,3 +484,14 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 | 无 entries reload | handset=1（恢复文件）|
 
 **Zinc 协作全部闭环**：BUG-002~008、REQ-002/003、SUG-003/007/008 全部修复并验证。
+
+---
+
+## BUG-009 提报（2026-08-08 17:00，P1）：GUI 中文搜索全失败
+
+**实测**：Zinc UI 搜索框（query_string 无 analyzer）中文 0 命中；API 对照 match=1 / query_string=0 / multi_match=0 / query_string name:手机=1。
+
+**根因**：query_string.go:216 无 analyzer 回退 StandardAnalyzer；multi_match.go:284 SetAnalyzer(nil)→bluge standard。中文分词链与 jieba 索引不一致。
+
+**建议**：后端字段级 search analyzer 回退（方案 A）或 UI 发 match/显式 analyzer（方案 B）。
+- 提报：`docs/issues/20260808_bug009_query_string_cjk.md`（Zinc 仓库）
