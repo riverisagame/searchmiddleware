@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"log"
+	stdsync "sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -11,18 +12,21 @@ import (
 )
 
 type Scheduler struct {
-	cron    *cron.Cron
-	meta    *metadata.DB
-	engine  *sync.Engine
-	indexes map[string]bool
+	cron     *cron.Cron
+	meta     *metadata.DB
+	engine   *sync.Engine
+	indexes  map[string]bool
+	mu       stdsync.Mutex
+	entryIDs map[uint]cron.EntryID // schedule.ID → cron entryID（run 更新 next_run 用）
 }
 
 func New(meta *metadata.DB, engine *sync.Engine, indexes map[string]bool) *Scheduler {
 	return &Scheduler{
-		cron:    cron.New(cron.WithSeconds()),
-		meta:    meta,
-		engine:  engine,
-		indexes: indexes,
+		cron:     cron.New(cron.WithSeconds()),
+		meta:     meta,
+		engine:   engine,
+		indexes:  indexes,
+		entryIDs: make(map[uint]cron.EntryID),
 	}
 }
 
@@ -89,6 +93,10 @@ func (s *Scheduler) register(sch metadata.Schedule) {
 		return
 	}
 
+	s.mu.Lock()
+	s.entryIDs[sch.ID] = entryID
+	s.mu.Unlock()
+
 	entry := s.cron.Entry(entryID)
 	if entry.Schedule != nil {
 		next := entry.Schedule.Next(time.Now())
@@ -124,14 +132,9 @@ func (s *Scheduler) run(sch metadata.Schedule) {
 }
 
 func (s *Scheduler) getEntryID(sch metadata.Schedule) cron.EntryID {
-	for _, entry := range s.cron.Entries() {
-		if entry.Job != nil {
-			if j, ok := entry.Job.(cron.FuncJob); ok {
-				_ = j
-			}
-		}
-	}
-	return 0
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.entryIDs[sch.ID]
 }
 
 func (s *Scheduler) AddSchedule(sch metadata.Schedule) error {
