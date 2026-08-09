@@ -248,9 +248,13 @@ func (e *Engine) getExpectedCount(indexName string) int64 {
 		return 0
 	}
 
-	countQuery := strings.Replace(indexCfg.Source.SQLQuery,
-		strings.Split(strings.ToUpper(indexCfg.Source.SQLQuery), "FROM")[0],
-		"SELECT COUNT(*)", 1)
+	upper := strings.ToUpper(indexCfg.Source.SQLQuery)
+	fromIdx := strings.Index(upper, "FROM")
+	if fromIdx == -1 {
+		return 0
+	}
+	// 修复：大小写不敏感截断 SELECT 子句（旧实现 Replace 大小写敏感 → 替换失败 → Scan 报错 → 恒 0 → 90% gate 失效）
+	countQuery := "SELECT COUNT(*) " + indexCfg.Source.SQLQuery[fromIdx:]
 
 	ds := e.dsMap[indexCfg.Source.DataSource]
 	if ds == nil {
