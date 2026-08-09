@@ -570,3 +570,16 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 **修复建议（方案 A）**：`:target` 查不到索引时按 alias 反查（GetAliasMap(nil, targets)）；或方案 B：404 明确报错。
 - 报告：`docs/issues/20260809_bug010_detailed_alias_es_semantics.md`（Zinc 仓库）
 - 我侧绕过已验证有效；Zinc 修复后可将 GetAlias 简化回标准路径
+
+---
+
+## BUG-010 修复验证（2026-08-09 16:00，73c2d91）✅ 核心场景通过
+
+| 场景 | 结果 |
+|------|------|
+| **GET /es/{alias}/_alias（ES 标准，修复前恒空）** | ✅ 返回 2 索引 |
+| GET /es/{index}/_alias（回归） | ✅ |
+| GET /es/_alias/{alias}（Zinc 专属，回归） | ✅ |
+| GET /es/{不存在}/_alias | ✅ 0（不误报） |
+
+实现与提报方案 A 一致（索引名查不到 → alias 反查）。全量查询断言受历史残留索引干扰（环境脏数据，非代码问题）。
