@@ -18,6 +18,7 @@ import (
 	"searchmiddleware/internal/auth"
 	"searchmiddleware/internal/config"
 	"searchmiddleware/internal/lifecycle"
+	"searchmiddleware/internal/logx"
 	"searchmiddleware/internal/metadata"
 	"searchmiddleware/internal/scheduler"
 	"searchmiddleware/internal/sync"
@@ -44,6 +45,12 @@ func main() {
 	appCfg, err := config.LoadAppConfig(*configPath)
 	if err != nil {
 		log.Fatalf("load config: %v", err)
+	}
+
+	// Q39：日志级别初始化（debug/info/warn/error，默认 info）
+	if lvl, ok := logx.ParseLevel(appCfg.LogLevel); ok {
+		logx.SetLevel(lvl)
+		logx.Infof("main", "log level set to %s", appCfg.LogLevel)
 	}
 
 	dsCfgs, err := config.LoadDataSources(*dataSourcesPath)
@@ -104,7 +111,7 @@ func main() {
 	go startGUIServer(appCfg.Server.GUIPort, appCfg.Server.APIPort)
 
 	go func() {
-		log.Printf("API server listening on :%d", appCfg.Server.APIPort)
+		logx.Infof("main", "API server listening on :%d", appCfg.Server.APIPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("api server: %v", err)
 		}

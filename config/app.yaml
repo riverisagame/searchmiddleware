@@ -31,3 +31,5 @@ synonyms_file: ./data/dict/synonyms.txt
 rate_limit:
   enabled: false
   qps: 100
+
+log_level: info

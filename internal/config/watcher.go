@@ -1,10 +1,11 @@
 package config
 
 import (
-	"log"
 	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
+
+	"searchmiddleware/internal/logx"
 )
 
 // Watcher 监听 config/indexes/*.yaml 变更（Q15 热加载）
@@ -57,7 +58,7 @@ func (w *Watcher) Start() {
 					continue
 				}
 				name := filepath.Base(ev.Name)
-				log.Printf("[config-watch] %s changed (%v), reloading", name, ev.Op)
+				logx.Infof("config-watch", "%s changed (%v), reloading", name, ev.Op)
 				if w.onChange != nil {
 					w.onChange(trimYamlExt(name))
 				}
@@ -65,7 +66,7 @@ func (w *Watcher) Start() {
 				if !ok {
 					return
 				}
-				log.Printf("[config-watch] error: %v", err)
+				logx.Errorf("config-watch", "error: %v", err)
 			}
 		}
 	}()

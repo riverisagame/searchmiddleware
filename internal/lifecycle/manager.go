@@ -2,11 +2,11 @@ package lifecycle
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	"searchmiddleware/internal/config"
+	"searchmiddleware/internal/logx"
 	"searchmiddleware/internal/metadata"
 	"searchmiddleware/internal/zinc"
 )
@@ -52,7 +52,7 @@ func (m *Manager) CreateWriteIndex(indexName string) (string, error) {
 
 	mapping := m.buildMapping(indexName)
 	if err := m.zinc.CreateIndex(writeIndex, mapping, m.indexCfgs[indexName].Index.ZincCluster); err != nil {
-		log.Printf("create write index failed: %v", err)
+		logx.Errorf("lifecycle", "create write index failed: %v", err)
 		return "", err
 	}
 
@@ -76,7 +76,7 @@ func (m *Manager) SwitchAlias(indexName, writeIndex string) error {
 
 	oldIndexes, err := m.zinc.GetAlias(readAlias, m.indexCfgs[indexName].Index.ZincCluster)
 	if err != nil {
-		log.Printf("get old alias failed: %v", err)
+		logx.Errorf("lifecycle", "get old alias failed: %v", err)
 	}
 
 	addMap := map[string][]string{readAlias: {writeIndex}}

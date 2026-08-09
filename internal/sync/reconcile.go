@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	"searchmiddleware/internal/indexer"
+	"searchmiddleware/internal/logx"
 	"searchmiddleware/internal/metadata"
 )
 
@@ -116,7 +116,7 @@ func (e *Engine) FixReconcile(indexName string, resultID uint) error {
 				interfaces[i] = id
 			}
 			if err := e.TriggerByIDs(indexName, interfaces); err != nil {
-				log.Printf("fix reconcile rebuild failed: %v", err)
+				logx.Errorf("reconcile", "fix reconcile rebuild failed: %v", err)
 			}
 		}
 	}
@@ -141,7 +141,7 @@ func (e *Engine) deleteDocs(indexName string, ids []string) {
 	readAlias := e.lifecycle.GetReadAlias(indexName)
 	for _, id := range ids {
 		if err := e.zinc.DeleteDoc(readAlias, id, indexCfg.Index.ZincCluster); err != nil {
-			log.Printf("delete doc %s/%s failed: %v", readAlias, id, err)
+			logx.Errorf("reconcile", "delete doc %s/%s failed: %v", readAlias, id, err)
 		}
 	}
 }

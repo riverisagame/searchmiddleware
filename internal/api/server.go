@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 
 	"searchmiddleware/internal/auth"
 	"searchmiddleware/internal/config"
+	"searchmiddleware/internal/logx"
 	"searchmiddleware/internal/metadata"
 	"searchmiddleware/internal/query"
 	"searchmiddleware/internal/sync"
@@ -674,7 +674,7 @@ func (s *Server) handleCreateSynonym(c *gin.Context) {
 	}
 	s.reloadSynonyms()
 	if err := s.exportSynonymsToZinc(); err != nil {
-		log.Printf("synonym sync to zinc failed: %v", err)
+		logx.Errorf("synonym", "sync to zinc failed: %v", err)
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": syn})
 }
@@ -693,7 +693,7 @@ func (s *Server) handleUpdateSynonym(c *gin.Context) {
 	})
 	s.reloadSynonyms()
 	if err := s.exportSynonymsToZinc(); err != nil {
-		log.Printf("synonym sync to zinc failed: %v", err)
+		logx.Errorf("synonym", "sync to zinc failed: %v", err)
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }
@@ -703,7 +703,7 @@ func (s *Server) handleDeleteSynonym(c *gin.Context) {
 	s.meta.Delete(&metadata.Synonym{}, id)
 	s.reloadSynonyms()
 	if err := s.exportSynonymsToZinc(); err != nil {
-		log.Printf("synonym sync to zinc failed: %v", err)
+		logx.Errorf("synonym", "sync to zinc failed: %v", err)
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }

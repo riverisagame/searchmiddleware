@@ -21,6 +21,7 @@ type AppConfig struct {
 	Env       string         `yaml:"env"`
 	DataDir   string         `yaml:"data_dir"`
 	Synonyms  string         `yaml:"synonyms_file"` // ͬ��ʵ����ļ���Zinc SynonymPath ��������
+	LogLevel  string         `yaml:"log_level"`     // debug/info/warn/error（Q39 级别控制）
 }
 
 type ServerConfig struct {
@@ -161,6 +162,9 @@ func setDefaults(cfg *AppConfig) {
 	}
 	if cfg.Security.TokenExpiry == "" {
 		cfg.Security.TokenExpiry = "24h"
+	}
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
 	}
 	if cfg.Zinc.Default == "" && len(cfg.Zinc.Clusters) > 0 {
 		for k := range cfg.Zinc.Clusters {

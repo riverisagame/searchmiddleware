@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
 
 	"searchmiddleware/internal/config"
+	"searchmiddleware/internal/logx"
 	"searchmiddleware/internal/indexer"
 	"searchmiddleware/internal/lifecycle"
 	"searchmiddleware/internal/metadata"
@@ -167,7 +167,7 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 						failedIDs = append(failedIDs, fmt.Sprintf("%v", id))
 					}
 				}
-				log.Printf("bulk failed for %s batch %d-%d: %v", indexName, i, end, err)
+				logx.Errorf("sync", "bulk failed for %s batch %d-%d: %v", indexName, i, end, err)
 			}
 		}
 
@@ -181,7 +181,7 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 
 		// SUG-003 规避：bulk 后主动 refresh（NRT 立即可见，消除对账/查询的等待窗口）
 		if err := e.zinc.Refresh(writeIndex, indexCfg.Index.ZincCluster); err != nil {
-			log.Printf("refresh %s failed: %v", writeIndex, err)
+			logx.Errorf("sync", "refresh %s failed: %v", writeIndex, err)
 		}
 	} else {
 		e.logSync(indexName, syncType, "success", 0, durationMs, throughput, "no changes")
@@ -221,7 +221,7 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 		// Q29：每日全量兜底 = 对账 + 软删清理合并执行（异步，避免延长切换响应）
 		go func(idx string) {
 			if _, err := e.ReconcileIDs(idx); err != nil {
-				log.Printf("post-full reconcile %s failed: %v", idx, err)
+				logx.Errorf("sync", "post-full reconcile %s failed: %v", idx, err)
 			}
 		}(indexName)
 	}
@@ -350,7 +350,7 @@ func (e *Engine) retryFailedBatches() {
 		}
 
 		if err := e.TriggerByIDs(entry.IndexName, idInterfaces); err != nil {
-			log.Printf("retry failed for %s: %v", entry.IndexName, err)
+			logx.Errorf("sync", "retry failed for %s: %v", entry.IndexName, err)
 		}
 	}
 }

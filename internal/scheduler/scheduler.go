@@ -1,12 +1,12 @@
 package scheduler
 
 import (
-	"log"
 	stdsync "sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
 
+	"searchmiddleware/internal/logx"
 	"searchmiddleware/internal/metadata"
 	"searchmiddleware/internal/sync"
 )
@@ -89,7 +89,7 @@ func (s *Scheduler) register(sch metadata.Schedule) {
 		s.run(sch)
 	})
 	if err != nil {
-		log.Printf("register schedule failed: %s %s %v", sch.IndexName, sch.CronExpr, err)
+		logx.Errorf("scheduler", "register schedule failed: %s %s %v", sch.IndexName, sch.CronExpr, err)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (s *Scheduler) run(sch metadata.Schedule) {
 	}
 
 	if err != nil && err.Error() != "sync already running for "+sch.IndexName {
-		log.Printf("scheduled sync %s/%s failed: %v", sch.IndexName, sch.Type, err)
+		logx.Errorf("scheduler", "scheduled sync %s/%s failed: %v", sch.IndexName, sch.Type, err)
 	}
 
 	entry := s.cron.Entry(s.getEntryID(sch))
