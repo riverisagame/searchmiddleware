@@ -337,13 +337,16 @@ func (c *Client) Refresh(index, clusterName string) error {
 	return nil
 }
 
-func (c *Client) GetAlias(index string, clusterName string) (map[string]interface{}, error) {
+// GetAlias 返回 alias 名下所有索引（ES 语义）。
+// 注意：Zinc 的 GET /es/{alias}/_alias 按 alias 名查询恒返回空（BUG-010 提报中），
+// 故改调全量 GET /es/_alias 后本地过滤，保证按 alias 名查询可用。
+func (c *Client) GetAlias(alias string, clusterName string) (map[string]interface{}, error) {
 	url, err := c.getHealthyURL(clusterName)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := c.newRequest("GET", url+"/es/"+index+"/_alias", nil)
+	req, err := c.newRequest("GET", url+"/es/_alias", nil)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		c.markUnhealthy(url)
@@ -353,8 +356,22 @@ func (c *Client) GetAlias(index string, clusterName string) (map[string]interfac
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	var result map[string]interface{}
-	json.Unmarshal(bodyBytes, &result)
-	return result, nil
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, err
+	}
+
+	// 过滤：仅保留含该 alias 的索引（ES 语义：{索引名: {"aliases": {alias: ...}}})
+	filtered := make(map[string]interface{})
+	for idxName, meta := range result {
+		aliases, ok := meta.(map[string]interface{})["aliases"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if _, has := aliases[alias]; has {
+			filtered[idxName] = meta
+		}
+	}
+	return filtered, nil
 }
 
 func truncate(s string, n int) string {

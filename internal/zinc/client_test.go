@@ -37,8 +37,9 @@ func mockZinc(t *testing.T) (*httptest.Server, *atomic.Int64) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"index":"created"}`))
 		case r.Method == http.MethodGet && len(r.URL.Path) > 8 && r.URL.Path[len(r.URL.Path)-7:] == "/_alias":
+			// 全量 alias 视图（ES 语义：{索引名: {"aliases": {别名: {}}}}）
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{}`))
+			w.Write([]byte(`{"dev_maint_write_111":{"aliases":{"dev_maint":{}}},"dev_maint_write_222":{"aliases":{"dev_maint":{}}}}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(`{"error":"not found"}`))

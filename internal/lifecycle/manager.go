@@ -82,16 +82,12 @@ func (m *Manager) SwitchAlias(indexName, writeIndex string) error {
 	addMap := map[string][]string{readAlias: {writeIndex}}
 	removeMap := map[string][]string{}
 
-	if oldIndexes != nil {
-		if idxMap, ok := oldIndexes[readAlias].(map[string]interface{}); ok {
-			if aliases, ok := idxMap["aliases"].(map[string]interface{}); ok {
-				for alias := range aliases {
-					if alias != readAlias {
-						removeMap[alias] = []string{writeIndex}
-					}
-				}
-			}
+	// GetAlias 返回 {索引名: {"aliases": {别名: {...}}}}；仅移除旧索引上的 readAlias
+	for idxName := range oldIndexes {
+		if idxName == writeIndex {
+			continue
 		}
+		removeMap[readAlias] = append(removeMap[readAlias], idxName)
 	}
 
 	if err := m.zinc.AliasSwap(addMap, removeMap, m.indexCfgs[indexName].Index.ZincCluster); err != nil {
@@ -111,14 +107,11 @@ func (m *Manager) cleanupOldIndexes(indexName, readAlias, newWriteIndex string) 
 		return
 	}
 
+	// GetAlias 返回 {索引名: {"aliases": {...}}}；删除仍指向 readAlias 的旧 write 索引（保留新索引）
 	var toDelete []string
-	if idxMap, ok := oldIndexes[readAlias].(map[string]interface{}); ok {
-		if aliases, ok := idxMap["aliases"].(map[string]interface{}); ok {
-			for alias := range aliases {
-				if strings.HasPrefix(alias, m.cfg.Env+"_"+indexName+"_write_") && alias != newWriteIndex {
-					toDelete = append(toDelete, alias)
-				}
-			}
+	for idxName := range oldIndexes {
+		if strings.HasPrefix(idxName, m.cfg.Env+"_"+indexName+"_write_") && idxName != newWriteIndex {
+			toDelete = append(toDelete, idxName)
 		}
 	}
 
