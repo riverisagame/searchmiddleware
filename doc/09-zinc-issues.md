@@ -560,3 +560,13 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 | AliasSwap 切换后 | ✅ 旧索引移除、仅新索引保留 |
 
 **状态**：searchmiddleware 侧修复已生效（真实 Zinc 确认）；Zinc 侧 BUG-010 未修复（不阻塞，client 已绕过；修复后无需变更）。
+
+---
+
+## BUG-010 详细报告（2026-08-09，已提交 Zinc）
+
+**根因定位**：routes.go 三条路由——`:target` 仅按索引名解析（支持逗号多索引）；alias 查询走专属路径 `/es/_alias/{alias}`（非 ES 标准）。ES 标准 `GET /es/{alias}/_alias` 把 alias 当索引查 → 静默空。
+
+**修复建议（方案 A）**：`:target` 查不到索引时按 alias 反查（GetAliasMap(nil, targets)）；或方案 B：404 明确报错。
+- 报告：`docs/issues/20260809_bug010_detailed_alias_es_semantics.md`（Zinc 仓库）
+- 我侧绕过已验证有效；Zinc 修复后可将 GetAlias 简化回标准路径
