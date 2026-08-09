@@ -535,3 +535,17 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 **SUG-009 提报**：web/dist（6-29）比 src（7-29）旧 1 个月，embed 产物静默过期（ExplainStudio 未进 exe）；建议发布前强制 rebuild + CI 时间戳校验。
 - 提报：`docs/issues/20260808_sug009_ui_dist_stale.md`（Zinc 仓库）
 - 提示：UI 默认 30 分钟时间窗，旧数据需在时间选择器扩大范围（Kibana 式设计，非 bug）
+
+---
+
+## 自身缺陷发现与修复（2026-08-08 23:40）：alias 切换 P1 bug
+
+**缺陷**：SwitchAlias 从未移除旧索引的 readAlias（GetAlias 按 alias 查询恒空 [Zinc BUG-010] + 解析把外层 key 当 alias）→ 全量重建后搜索命中新旧双份数据。
+
+**修复（searchmiddleware）**：
+- GetAlias 改全量 /es/_alias + 本地按 alias 过滤
+- SwitchAlias/cleanupOldIndexes 按索引名正确解析
+- 测试 4 个（GetAlias 过滤/首次切换无 remove/正确移除）
+
+**Zinc 侧**：BUG-010 提报（GET /es/{alias}/_alias 恒空）。
+- 提报：`docs/issues/20260808_bug010_alias_query.md`（Zinc 仓库）
