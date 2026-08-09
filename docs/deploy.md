@@ -64,11 +64,10 @@ curl -X POST http://localhost:4080/api/_reload/synonym -u admin:Complexpass#123
 
 | 来源 | 容器 | 格式 | 说明 |
 |------|------|------|------|
-| API/同步/调度 | sm-middleware | Go 标准库 `log`（stdout 文本行） | `docker logs -f sm-middleware`；无级别过滤，生产接 Loki/ELK 按关键词 |
+| API/同步/调度 | sm-middleware | logx 文本行（`时间 级别 [tag] 消息`） | `docker logs -f sm-middleware`；级别由 `config/app.yaml` `log_level` 控制（debug/info/warn/error，默认 info） |
+| 搜索明细 | sm-middleware | debug 级 `[search]` 行（index/keyword/took/err5xx） | 调 `log_level: debug` 可查（Q39：明细仅 debug 级，不采集用户身份） |
 | Zinc | sm-zinc | zerolog JSON（stdout） | `LOG_LEVEL=debug` 开诊断（含 match query tokens）；生产 info |
 | Zinc 搜索审计 | sm-zinc | debug 级 "Search Query Audit" 行 | 调 `LOG_LEVEL=debug` 可查每次搜索的 DSL/耗时/命中数 |
-
-> 注：searchmiddleware 目前使用标准库 log（无日志级别/结构化字段）；如需结构化日志与级别控制，属待实现需求。
 
 ## 配置与密钥管理
 

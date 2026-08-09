@@ -222,6 +222,8 @@ func (s *Server) handleSearch(c *gin.Context) {
 	searchErr5xx := false
 	defer func() {
 		s.searchMet.observe(keyword, time.Since(start), searchErr5xx)
+		// Q39：明细请求日志仅 debug 级（默认不输出，隐私友好：不采集用户身份）
+		logx.Debugf("search", "index=%s keyword=%q page=%s err5xx=%v took=%s", c.Query("index"), keyword, c.Query("page"), searchErr5xx, time.Since(start))
 	}()
 
 	indexName := c.Query("index")
