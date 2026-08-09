@@ -549,3 +549,14 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 
 **Zinc 侧**：BUG-010 提报（GET /es/{alias}/_alias 恒空）。
 - 提报：`docs/issues/20260808_bug010_alias_query.md`（Zinc 仓库）
+
+---
+
+## alias 修复真实 Zinc 验证（2026-08-09 00:00）✅
+
+| 验证 | 结果 |
+|------|------|
+| 修复后 GetAlias（全量+过滤）连真实 Zinc | ✅ 返回 2 索引（旧实现恒空） |
+| AliasSwap 切换后 | ✅ 旧索引移除、仅新索引保留 |
+
+**状态**：searchmiddleware 侧修复已生效（真实 Zinc 确认）；Zinc 侧 BUG-010 未修复（不阻塞，client 已绕过；修复后无需变更）。
