@@ -20,6 +20,7 @@ import (
 	"searchmiddleware/internal/logx"
 	"searchmiddleware/internal/metadata"
 	"searchmiddleware/internal/query"
+	"searchmiddleware/internal/scheduler"
 	"searchmiddleware/internal/sync"
 	"searchmiddleware/internal/zinc"
 )
@@ -36,6 +37,7 @@ type Server struct {
 	synonyms    map[string][]string
 	engine2     *sync.Engine
 	searchMet   *searchMetrics // Q39 搜索观测
+	sched       *scheduler.Scheduler
 }
 
 func NewServer(
@@ -46,6 +48,7 @@ func NewServer(
 	authMgr *auth.Manager,
 	indexCfgs map[string]*config.IndexConfig,
 	dsMap map[string]*sql.DB,
+	sched *scheduler.Scheduler,
 ) *Server {
 	return &Server{
 		cfg:         cfg,
@@ -58,6 +61,7 @@ func NewServer(
 		dataSources: dsMap,
 		synonyms:    loadSynonyms(meta),
 		searchMet:   newSearchMetrics(),
+		sched:       sched,
 	}
 }
 
@@ -89,6 +93,7 @@ func (s *Server) Router() *gin.Engine {
 		v1.GET("/schedules", s.adminOrViewer(s.handleListSchedules))
 		v1.POST("/schedules", s.adminOnly(s.handleCreateSchedule))
 		v1.PUT("/schedules/:id", s.adminOnly(s.handleUpdateSchedule))
+		v1.PUT("/schedules/:id/status", s.adminOnly(s.handleToggleSchedule))
 		v1.DELETE("/schedules/:id", s.adminOnly(s.handleDeleteSchedule))
 
 		v1.GET("/synonyms", s.adminOrViewer(s.handleListSynonyms))
@@ -584,7 +589,11 @@ func (s *Server) handleCreateSchedule(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid body"})
 		return
 	}
-	if err := s.meta.Create(&sch).Error; err != nil {
+	if s.sched == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": "scheduler not initialized"})
+		return
+	}
+	if err := s.sched.AddSchedule(sch); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
 		return
 	}
@@ -598,17 +607,55 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid body"})
 		return
 	}
-	s.meta.Model(&metadata.Schedule{}).Where("id = ?", id).Updates(map[string]interface{}{
+	if err := s.meta.Model(&metadata.Schedule{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"cron_expr": sch.CronExpr,
 		"enabled":   sch.Enabled,
 		"type":      sch.Type,
-	})
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+		return
+	}
+	// 同步 cron：重新注册（启用）或移除（停用）
+	if s.sched != nil {
+		if err := s.sched.ToggleSchedule(uint(id), sch.Enabled); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
+}
+
+// handleToggleSchedule 启停调度：PUT /schedules/:id/status {enabled}
+func (s *Server) handleToggleSchedule(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid body"})
+		return
+	}
+	if s.sched == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": "scheduler not initialized"})
+		return
+	}
+	if err := s.sched.ToggleSchedule(uint(id), body.Enabled); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }
 
 func (s *Server) handleDeleteSchedule(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	s.meta.Delete(&metadata.Schedule{}, id)
+	if s.sched != nil {
+		if err := s.sched.RemoveSchedule(uint(id)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+			return
+		}
+	} else {
+		s.meta.Delete(&metadata.Schedule{}, id)
+	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }
 

@@ -62,6 +62,8 @@ export const api = {
 
   listSchedules: () => request('GET', '/api/v1/schedules'),
   createSchedule: (s) => request('POST', '/api/v1/schedules', s),
+  updateSchedule: (id, s) => request('PUT', '/api/v1/schedules/' + id, s),
+  toggleSchedule: (id, enabled) => request('PUT', '/api/v1/schedules/' + id + '/status', { enabled }),
   deleteSchedule: (id) => request('DELETE', '/api/v1/schedules/' + id),
 
   listSynonyms: () => request('GET', '/api/v1/synonyms'),

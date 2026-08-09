@@ -85,6 +85,9 @@ func (s *Scheduler) register(sch metadata.Schedule) {
 		spec = "0 0 2 * * *"
 	}
 
+	// 幂等：同 id 已有 entry 先移除（更新/重复注册场景）
+	s.unregister(sch.ID)
+
 	entryID, err := s.cron.AddFunc(spec, func() {
 		s.run(sch)
 	})
@@ -102,6 +105,17 @@ func (s *Scheduler) register(sch metadata.Schedule) {
 		next := entry.Schedule.Next(time.Now())
 		s.meta.Model(&metadata.Schedule{}).Where("id = ?", sch.ID).
 			Update("next_run", next)
+	}
+}
+
+// unregister 移除 cron entry 并清理映射（幂等）
+func (s *Scheduler) unregister(id uint) {
+	s.mu.Lock()
+	entryID, ok := s.entryIDs[id]
+	delete(s.entryIDs, id)
+	s.mu.Unlock()
+	if ok {
+		s.cron.Remove(entryID)
 	}
 }
 
@@ -150,11 +164,29 @@ func (s *Scheduler) RemoveSchedule(id uint) error {
 	if err := s.meta.First(&sch, id).Error; err != nil {
 		return err
 	}
-	return s.meta.Delete(&sch).Error
+	if err := s.meta.Delete(&sch).Error; err != nil {
+		return err
+	}
+	s.unregister(id)
+	return nil
 }
 
+// ToggleSchedule 启停：更新 DB + 同步 cron（停=移除 entry，启=重新注册）
 func (s *Scheduler) ToggleSchedule(id uint, enabled bool) error {
-	return s.meta.Model(&metadata.Schedule{}).Where("id = ?", id).Update("enabled", enabled).Error
+	var sch metadata.Schedule
+	if err := s.meta.First(&sch, id).Error; err != nil {
+		return err
+	}
+	if err := s.meta.Model(&metadata.Schedule{}).Where("id = ?", id).Update("enabled", enabled).Error; err != nil {
+		return err
+	}
+	if enabled {
+		sch.Enabled = true
+		s.register(sch)
+	} else {
+		s.unregister(id)
+	}
+	return nil
 }
 
 func (s *Scheduler) Reload() {

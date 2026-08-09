@@ -86,7 +86,7 @@ func main() {
 	schedulerMgr := scheduler.New(metaDB, syncEngine, indexNames(indexCfgs))
 	schedulerMgr.Start()
 
-	apiServer := api.NewServer(appCfg, metaDB, zincClient, syncEngine, authMgr, indexCfgs, dsMap)
+	apiServer := api.NewServer(appCfg, metaDB, zincClient, syncEngine, authMgr, indexCfgs, dsMap, schedulerMgr)
 
 	// Q15 热加载：监听 config/indexes/*.yaml 变更 → 校验 → 回灌 DB → 更新内存
 	if watcher, err := config.NewWatcher(*indexesDir, func(name string) {

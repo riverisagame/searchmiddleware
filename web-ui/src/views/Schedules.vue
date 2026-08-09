@@ -83,10 +83,12 @@ async function create() {
 
 async function toggle(row, v) {
   try {
-    await api.updateSchedule ? null : null
-    // 后端暂未开放启用/停用接口，提示
-    ElMessage.info('启停需后端支持，当前版本请直接删除重建')
-  } catch { /* noop */ }
+    await api.toggleSchedule(row.id, v)
+    ElMessage.success(v ? '已启用' : '已停用')
+    load()
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
 }
 
 async function remove(row) {
