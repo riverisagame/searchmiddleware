@@ -175,6 +175,11 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 			e.logSync(indexName, syncType, "partial", result.Count, durationMs, throughput, fmt.Sprintf("failed_ids: %d", len(failedIDs)))
 			e.saveFailedIDs(indexName, syncType, failedIDs)
 			e.createAlert(indexName, "WARN", fmt.Sprintf("bulk partial failure: %d docs", len(failedIDs)))
+			// 全量写入失败：标记 write 索引失效（GetWriteIndex 识别 failed_ 前缀 → 下次全量重建新索引）
+			// 否则复用坏索引（如 Zinc bulk 挂起后的索引）→ 永久失败
+			if syncType == "full" {
+				e.lifecycle.MarkWriteIndexFailed(indexName, writeIndex)
+			}
 		} else {
 			e.logSync(indexName, syncType, "success", result.Count, durationMs, throughput, "")
 		}

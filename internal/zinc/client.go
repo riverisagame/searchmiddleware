@@ -182,7 +182,9 @@ func (c *Client) Bulk(index string, docs []map[string]interface{}, clusterName s
 		buf.WriteByte('\n')
 	}
 
-	req, err := c.newRequest("POST", url+"/es/"+index+"/_bulk", &buf)
+	// BUG-012 规避：不带 refresh 的 bulk 在 Zinc WAL 异常（中断写入污染）时返回 200 但数据丢失；
+	// 直接带 refresh=true 走 segment 路径，规避 WAL 丢失
+	req, err := c.newRequest("POST", url+"/es/"+index+"/_bulk?refresh=true", &buf)
 	req.Header.Set("Content-Type", "application/x-ndjson")
 
 	resp, err := c.httpClient.Do(req)

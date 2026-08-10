@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -307,7 +308,13 @@ func (b *DocumentBuilder) buildAttrRows() map[string]map[string]string {
 		for rows.Next() {
 			rows.Scan(valuePtrs...)
 			pk := fmt.Sprintf("%v", values[0])
-			val := fmt.Sprintf("%v", values[1])
+			// MySQL 返回 []byte：转 string（否则 Sprintf 输出字节数组文本，中文 attrs 乱码）
+			var val string
+			if b, ok := values[1].([]byte); ok {
+				val = string(b)
+			} else {
+				val = fmt.Sprintf("%v", values[1])
+			}
 			if existing, ok := attrMap[pk]; ok {
 				attrMap[pk] = existing + " " + val
 			} else {
@@ -372,8 +379,34 @@ func (b *DocumentBuilder) convertValue(val interface{}, colName string) interfac
 			}
 			return result
 		}
+		// MySQL driver 的 text/DECIMAL 列返回 []byte：转 string（否则 JSON 序列化为 base64，中文/数值全乱码）
+		if v.Kind() == reflect.Slice && v.Type().Elem().Kind() == reflect.Uint8 {
+			s := string(v.Bytes())
+			return b.coerceNumeric(s, field)
+		}
 		return val
 	}
 
 	return val
+}
+
+// coerceNumeric 数值字段的字符串值解析（MySQL DECIMAL/INT 列经 []byte 到达）
+func (b *DocumentBuilder) coerceNumeric(s string, field FieldInfo) interface{} {
+	switch field.Type {
+	case "float", "double":
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			return f
+		}
+	case "int", "long", "numeric", "integer":
+		if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return i
+		}
+	case "date":
+		if field.Format == "unix_timestamp" {
+			if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+				return i
+			}
+		}
+	}
+	return s
 }

@@ -40,6 +40,10 @@ func (m *Manager) GetWriteIndex(indexName string) string {
 	if err := m.metadata.Where("name = ?", indexName).First(&idxConfig).Error; err != nil {
 		return ""
 	}
+	// failed_ 前缀 = 上次写入失败标记 → 视为无有效 write 索引（下次全量重建新索引）
+	if strings.HasPrefix(idxConfig.Config, "failed_") {
+		return ""
+	}
 	return idxConfig.Config
 }
 
