@@ -633,3 +633,15 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 
 **Zinc 侧 BUG-012 提报（P1 数据丢失）**：无 refresh bulk 在 WAL 污染后返回 200 但数据丢失（全局、重启暂恢复）——sm 已规避（bulk?refresh=true）。
 - 提报：`docs/issues/20260810_bug012_bulk_data_loss.md`（Zinc 仓库）
+
+---
+
+## BUG-012 源码级详解（2026-08-10）
+
+**完整链路**：
+1. 写入：`CreateDocument` → `shard.wal.Write()` 成功即返回 200（异步消费）
+2. 消费：`IndexShardWALList.ConsumeWAL` 用 **errgroup 并发**（每分片一 goroutine + SetLimit 限流）
+3. **根因**：bulk 被客户端中断 → WAL 文件损坏 → 该分片 `ConsumeWAL` 在 `wal.Sync()/LastIndex()` **IO 阻塞** → goroutine 不返回 → **errgroup 槽位被占死 → 全局消费停摆**（所有索引数据不落）
+4. 现象：bulk 200 但数据丢（静默）；refresh 无效（只 flush 内存）；refresh=true 正常（直写 segment）；重启恢复
+
+**修复建议（已提报）**：消费看门狗超时（阻塞跳过不占死全局）+ WAL 损坏自动重建 + 积压告警。
