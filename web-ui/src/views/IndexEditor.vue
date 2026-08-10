@@ -19,99 +19,119 @@
         <template v-if="current">
           <el-alert title="保存后需重建索引生效" type="info" show-icon :closable="false" style="margin-bottom: 12px" />
 
-          <!-- ===== 表单模式 ===== -->
+          <!-- ===== 表单模式：Tab 布局（基本信息 / 属性 / 字段）===== -->
           <template v-if="mode === 'form'">
-            <el-form label-width="110px" size="small">
-              <el-divider content-position="left">基本信息</el-divider>
-              <el-row :gutter="12">
-                <el-col :span="8">
-                  <el-form-item label="索引名">
-                    <el-input v-model="form.index.name" :disabled="true" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="数据源">
-                    <el-input v-model="form.source.datasource" placeholder="datasources.yaml 中的名称" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="增量字段">
-                    <el-input v-model="form.source.incremental_field" placeholder="如 update_time" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-              <el-row :gutter="12">
-                <el-col :span="8">
-                  <el-form-item label="分析器">
-                    <el-input v-model="form.index.analyzer" placeholder="jieba_std" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="搜索分析器">
-                    <el-input v-model="form.index.search_analyzer" placeholder="jieba_search" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
+            <el-tabs v-model="activeTab">
+              <!-- Tab 1：基本信息 + 主 SQL -->
+              <el-tab-pane label="基本信息" name="basic">
+                <el-form label-width="100px" size="default">
+                  <el-row :gutter="16">
+                    <el-col :span="8">
+                      <el-form-item label="索引名">
+                        <el-input v-model="form.index.name" :disabled="true" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="数据源">
+                        <el-input v-model="form.source.datasource" placeholder="datasources.yaml 中的名称" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="增量字段">
+                        <el-input v-model="form.source.incremental_field" placeholder="如 update_time" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="分析器">
+                        <el-input v-model="form.index.analyzer" placeholder="jieba_std" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="搜索分析器">
+                        <el-input v-model="form.index.search_analyzer" placeholder="jieba_search" />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
 
-              <el-divider content-position="left">主 SQL</el-divider>
-              <el-form-item label="SQL 查询">
-                <el-input v-model="form.source.sql_query" type="textarea" :rows="5" placeholder="SELECT id, name FROM your_table WHERE delete_time = 0" class="mono" />
-              </el-form-item>
+                  <div class="section-title">主 SQL</div>
+                  <el-form-item label="SQL 查询">
+                    <el-input v-model="form.source.sql_query" type="textarea" :rows="18" placeholder="SELECT id, name FROM your_table WHERE delete_time = 0" class="mono sql-editor" />
+                  </el-form-item>
+                </el-form>
+              </el-tab-pane>
 
-              <el-divider content-position="left">属性 SQL（可选，GROUP_CONCAT 合并）</el-divider>
-              <div v-for="(jf, i) in form.source.joined_fields" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px">
-                <el-input v-model="jf.key" placeholder="字段名，如 category_names" style="width: 200px" />
-                <el-input v-model="jf.value" type="textarea" :rows="1" placeholder="SELECT r.id, GROUP_CONCAT(...) AS val FROM ..." class="mono" />
-                <el-button type="danger" plain size="small" @click="removeJoined(i)">删</el-button>
-              </div>
-              <el-button size="small" @click="addJoined">+ 添加属性 SQL</el-button>
+              <!-- Tab 2：属性（属性 SQL + 权重） -->
+              <el-tab-pane label="属性" name="attrs">
+                <div class="section-title">属性 SQL（GROUP_CONCAT 合并）</div>
+                <div v-for="(jf, i) in form.source.joined_fields" :key="i" style="margin-bottom: 16px">
+                  <div style="display: flex; gap: 8px; margin-bottom: 6px">
+                    <el-input v-model="jf.key" placeholder="字段名，如 category_names" style="width: 220px" />
+                    <el-button type="danger" plain @click="removeJoined(i)">删除</el-button>
+                  </div>
+                  <el-input v-model="jf.value" type="textarea" :rows="6" placeholder="SELECT r.id, GROUP_CONCAT(...) AS val FROM ..." class="mono sql-editor" />
+                </div>
+                <el-button type="primary" plain @click="addJoined">+ 添加属性 SQL</el-button>
 
-              <el-divider content-position="left">权重（boost）</el-divider>
-              <div v-for="(b, i) in form.index.boost" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px">
-                <el-input v-model="b.key" placeholder="字段名" style="width: 200px" />
-                <el-input v-model="b.value" placeholder="权重，如 5.0" style="width: 120px" />
-                <el-button type="danger" plain size="small" @click="removeBoost(i)">删</el-button>
-              </div>
-              <el-button size="small" @click="addBoost">+ 添加权重</el-button>
+                <div class="section-title" style="margin-top: 24px">权重（boost）</div>
+                <div v-for="(b, i) in form.index.boost" :key="i" style="display: flex; gap: 8px; margin-bottom: 10px; max-width: 480px">
+                  <el-input v-model="b.key" placeholder="字段名" />
+                  <el-input v-model="b.value" placeholder="权重" style="width: 140px" />
+                  <el-button type="danger" plain @click="removeBoost(i)">删除</el-button>
+                </div>
+                <el-button type="primary" plain @click="addBoost">+ 添加权重</el-button>
+              </el-tab-pane>
 
-              <el-divider content-position="left">字段列表</el-divider>
-              <el-table :data="form.index.fields" size="small" border>
-                <el-table-column label="字段名" min-width="120">
-                  <template #default="{ row }"><el-input v-model="row.name" size="small" /></template>
-                </el-table-column>
-                <el-table-column label="类型" width="100">
-                  <template #default="{ row }">
-                    <el-select v-model="row.type" size="small">
-                      <el-option v-for="t in ['text','keyword','numeric','float','date']" :key="t" :label="t" :value="t" />
-                    </el-select>
-                  </template>
-                </el-table-column>
-                <el-table-column label="搜索" width="70">
-                  <template #default="{ row }"><el-checkbox v-model="row.searchable" /></template>
-                </el-table-column>
-                <el-table-column label="过滤" width="70">
-                  <template #default="{ row }"><el-checkbox v-model="row.filter" /></template>
-                </el-table-column>
-                <el-table-column label="排序" width="70">
-                  <template #default="{ row }"><el-checkbox v-model="row.sortable" /></template>
-                </el-table-column>
-                <el-table-column label="聚合" width="70">
-                  <template #default="{ row }"><el-checkbox v-model="row.agg" /></template>
-                </el-table-column>
-                <el-table-column label="元素类型" width="110">
-                  <template #default="{ row }"><el-input v-model="row.element_type" size="small" placeholder="数组元素类型" /></template>
-                </el-table-column>
-                <el-table-column label="格式" width="110">
-                  <template #default="{ row }"><el-input v-model="row.format" size="small" placeholder="如 unix_timestamp" /></template>
-                </el-table-column>
-                <el-table-column width="60">
-                  <template #default="{ $index }">
-                    <el-button type="danger" plain size="small" @click="removeField($index)">删</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <el-button size="small" style="margin-top: 8px" @click="addField">+ 添加字段</el-button>
-            </el-form>
+              <!-- Tab 3：字段信息 -->
+              <el-tab-pane label="字段" name="fields">
+                <div class="section-title" style="display: flex; justify-content: space-between; align-items: center">
+                  <span>字段列表</span>
+                  <el-button type="primary" plain size="small" @click="addField">+ 添加字段</el-button>
+                </div>
+                <el-table :data="form.index.fields" size="default" border height="520">
+                  <el-table-column label="字段名" min-width="120">
+                    <template #default="{ row }"><el-input v-model="row.name" size="default" /></template>
+                  </el-table-column>
+                  <el-table-column label="类型" width="105">
+                    <template #default="{ row }">
+                      <el-select v-model="row.type" size="default">
+                        <el-option v-for="t in ['text','keyword','numeric','float','date']" :key="t" :label="t" :value="t" />
+                      </el-select>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="搜索" width="64" align="center">
+                    <template #default="{ row }"><el-checkbox v-model="row.searchable" /></template>
+                  </el-table-column>
+                  <el-table-column label="过滤" width="64" align="center">
+                    <template #default="{ row }"><el-checkbox v-model="row.filter" /></template>
+                  </el-table-column>
+                  <el-table-column label="排序" width="64" align="center">
+                    <template #default="{ row }"><el-checkbox v-model="row.sortable" /></template>
+                  </el-table-column>
+                  <el-table-column label="聚合" width="64" align="center">
+                    <template #default="{ row }"><el-checkbox v-model="row.agg" /></template>
+                  </el-table-column>
+                  <el-table-column label="元素类型" width="110">
+                    <template #default="{ row }">
+                      <el-select v-model="row.element_type" size="default" clearable placeholder="数组元素">
+                        <el-option v-for="t in ['long','integer','short','byte','double','float','text','keyword','boolean']" :key="t" :label="t" :value="t" />
+                      </el-select>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="格式" width="150">
+                    <template #default="{ row }">
+                      <el-select v-model="row.format" size="default" clearable placeholder="日期格式">
+                        <el-option v-for="f in ['unix_timestamp','unix_milli','date_time','date','strict_date_optional_time','yyyy-MM-dd HH:mm:ss','2006-01-02 15:04:05']" :key="f" :label="f" :value="f" />
+                      </el-select>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="60" align="center">
+                    <template #default="{ $index }">
+                      <el-button type="danger" plain size="small" @click="removeField($index)">删</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+            </el-tabs>
           </template>
 
           <!-- ===== 高级模式 ===== -->
@@ -143,13 +163,13 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="sqlDialog" title="试跑 SQL（仅 SELECT，自动 LIMIT 20）" width="720px">
+  <el-dialog v-model="sqlDialog" title="试跑 SQL（仅 SELECT，自动 LIMIT 20）" width="900px">
     <el-form label-width="80px">
       <el-form-item label="数据源">
         <el-input v-model="sqlDS" placeholder="datasources.yaml 中的名称，如 main" style="width: 220px" />
       </el-form-item>
       <el-form-item label="SQL">
-        <el-input v-model="sqlText" type="textarea" :rows="4" placeholder="SELECT id, name FROM your_table WHERE ..." />
+        <el-input v-model="sqlText" type="textarea" :rows="10" placeholder="SELECT id, name FROM your_table WHERE ..." class="mono sql-editor" />
       </el-form-item>
     </el-form>
     <el-button type="primary" :loading="sqlLoading" @click="runSqlTest" style="margin-left: 80px">执行</el-button>
@@ -175,6 +195,7 @@ const newDialog = ref(false)
 const newName = ref('')
 const useTemplate = ref(false)
 const mode = ref('form')
+const activeTab = ref('basic')
 const sqlDialog = ref(false)
 const sqlDS = ref('main')
 const sqlText = ref('')
@@ -362,5 +383,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.editor :deep(textarea), .mono :deep(textarea) { font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; }
+.editor :deep(textarea), .mono :deep(textarea) { font-family: 'Consolas', 'Courier New', monospace; font-size: 14px; line-height: 1.6; }
+.sql-editor :deep(textarea) { font-size: 14px; }
 </style>

@@ -81,30 +81,42 @@ function onCommand(cmd) {
 
 <style scoped>
 .aside {
-  background: linear-gradient(180deg, #14203c 0%, #0e1730 100%);
+  background: linear-gradient(180deg, #101a33 0%, #0b1226 100%);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  border-right: 1px solid rgba(34, 211, 238, 0.08);
 }
 .logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 20px 20px 16px;
+  padding: 22px 20px 18px;
 }
-.logo-icon { font-size: 22px; }
-.logo-text { color: #fff; font-size: 17px; font-weight: 700; letter-spacing: 0.5px; }
+.logo-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.5));
+}
+.logo-text {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-family: var(--app-font-mono);
+}
 
-.side-menu { border-right: none; padding: 4px 10px; }
+.side-menu { border-right: none; padding: 6px 12px; }
 .side-menu .el-menu-item {
-  border-radius: 8px;
-  margin-bottom: 4px;
-  height: 44px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  height: 46px;
+  font-size: 14px;
 }
 .side-menu .el-menu-item:hover { background: rgba(255, 255, 255, 0.06); }
 .side-menu .el-menu-item.is-active {
-  background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-light-3));
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.2), rgba(34, 211, 238, 0.05));
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35), 0 0 12px rgba(34, 211, 238, 0.12);
+  color: #7ceaf7;
 }
 
 .header {
@@ -129,7 +141,7 @@ function onCommand(cmd) {
   padding: 1px 6px;
   margin-left: 6px;
 }
-.main { background: var(--el-bg-color-page); padding: 20px; }
-html.dark .header { border-bottom-color: #2c2c2d; }
-html.dark .aside { background: linear-gradient(180deg, #1a1c1f 0%, #121316 100%); }
+.main { background: var(--el-bg-color-page); padding: 24px; }
+html.dark .header { border-bottom-color: var(--el-border-color-lighter); }
+html.dark .aside { background: linear-gradient(180deg, #141c30 0%, #0e1424 100%); }
 </style>

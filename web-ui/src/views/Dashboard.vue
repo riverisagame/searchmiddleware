@@ -126,25 +126,30 @@ onMounted(load)
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
-  padding: 18px;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  border-radius: 14px;
+  padding: 22px 20px;
+  transition: box-shadow var(--app-transition), transform var(--app-transition);
 }
-.stat-card:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+.stat-card:hover { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1); transform: translateY(-2px); }
 .stat-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 26px;
 }
-.stat-value { font-size: 24px; font-weight: 700; line-height: 1.2; }
-.stat-label { font-size: 13px; color: var(--el-text-color-secondary); }
+.stat-value {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-family: var(--app-font-mono);
+}
+.stat-label { font-size: 14px; color: var(--el-text-color-secondary); margin-top: 4px; }
 
 .idx-card { margin-bottom: 0; }
 .idx-head { display: flex; align-items: center; justify-content: space-between; }
