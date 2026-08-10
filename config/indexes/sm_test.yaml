@@ -2,7 +2,7 @@
 source:
   name: sm_test_source
   datasource: main
-  sql_query: "SELECT 1 AS id, '' AS name, 0 AS price, '' AS category_ids"
+  sql_query: "SELECT 1 AS id, '' AS name, 0 AS price, '' AS category_ids, 0 AS update_time"
 index:
   name: sm_test
   alias: true
