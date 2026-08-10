@@ -608,13 +608,13 @@ func validCronExpr(expr string) bool {
 	return err == nil
 }
 
-// validIndexName 索引名白名单：字母数字下划线连字符（防路径遍历/非法文件名）
+// validIndexName 索引名校验：拒绝路径遍历/控制字符，放行中文/点号等业务命名
 func validIndexName(name string) bool {
-	if name == "" || len(name) > 128 {
+	if name == "" || len(name) > 128 || name == "." || name == ".." {
 		return false
 	}
 	for _, c := range name {
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-') {
+		if c == '/' || c == '\\' || c < 0x20 {
 			return false
 		}
 	}

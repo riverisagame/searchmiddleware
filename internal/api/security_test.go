@@ -212,7 +212,8 @@ func TestAttackIndexNameValidation(t *testing.T) {
 	_, httpSrv := newSecurityServer(t)
 	token := loginToken(t, httpSrv.URL, "admin", "admin123")
 
-	for _, name := range []string{"_private", "a b", "a/b", "a\\b", "a:b", "..", ".", ""} {
+	// 安全威胁名（必须拒绝）：路径遍历/控制字符
+	for _, name := range []string{"_private", "a/b", "a\\b", "a:b", "..", ".", "", "a\u0000b", "x/y/z"} {
 		code, _ := doJSON(t, httpSrv.URL, "POST", "/api/v1/indexes", map[string]interface{}{
 			"name": name, "content": "source:\n  sql_query: \"SELECT 1\"\nindex:\n  name: x\n",
 		}, token)
@@ -220,6 +221,18 @@ func TestAttackIndexNameValidation(t *testing.T) {
 			t.Errorf("invalid index name %q accepted (200)", name)
 		} else {
 			t.Logf("rejected %q -> %d", name, code)
+		}
+	}
+
+	// 业务命名（必须接受）：中文/点号/空格
+	for _, name := range []string{"商品库", "v1.2", "a b", "中文-索引"} {
+		code, _ := doJSON(t, httpSrv.URL, "POST", "/api/v1/indexes", map[string]interface{}{
+			"name": name, "content": "source:\n  sql_query: \"SELECT 1\"\nindex:\n  name: x\n",
+		}, token)
+		if code != 200 {
+			t.Errorf("business name %q should be accepted, got %d", name, code)
+		} else {
+			t.Logf("accepted %q", name)
 		}
 	}
 }
