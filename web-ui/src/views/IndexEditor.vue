@@ -83,6 +83,8 @@
 
               <!-- Tab 3：字段信息 -->
               <el-tab-pane label="字段" name="fields">
+                <el-alert type="info" :closable="false" style="margin-bottom: 12px"
+                  title="字段 = 主 SQL 返回的列；类型在此配置（text 分词搜索 / keyword 精确 / numeric·float 数值 / date 日期）。数组 = 多值字段（如 category_ids=[1,2,3]），勾选后需指定元素类型。" />
                 <div class="section-title" style="display: flex; justify-content: space-between; align-items: center">
                   <span>字段列表</span>
                   <el-button type="primary" plain size="small" @click="addField">+ 添加字段</el-button>
@@ -111,6 +113,11 @@
                     <template #default="{ row }"><el-checkbox v-model="row.agg" /></template>
                   </el-table-column>
                   <el-table-column label="数组" width="100" align="center">
+                    <template #header>
+                      <el-tooltip content="多值字段（如 category_ids=[1,2,3]）勾选后指定元素类型" placement="top">
+                        <span>数组 <el-icon style="vertical-align: -2px"><QuestionFilled /></el-icon></span>
+                      </el-tooltip>
+                    </template>
                     <template #default="{ row }">
                       <el-checkbox v-model="row.is_array" @change="(v) => onArrayToggle(row, v)" />
                     </template>
@@ -189,6 +196,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../api'
 
