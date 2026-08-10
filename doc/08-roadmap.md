@@ -69,3 +69,5 @@
 - 任务 12 限流：✅ 已实现（fixed-window per-IP，config-gated，429 挂钩 Q39 指标）
 - 任务 14 指标：✅ 已实现（Q39：total/latency histogram/top50/5xx/429）
 - 待办：任务 23 车鲸鱼接入（Q41 业务确认）
+
+- 任务 22 CHANGELOG：✅ 已补（v0.1.0，2026-08-10）
