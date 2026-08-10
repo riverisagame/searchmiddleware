@@ -342,6 +342,19 @@ func ParseIndexConfig(name string, data []byte) (*IndexConfig, error) {
 	return &cfg, nil
 }
 
+// AcquireIndexCreateLock 原子创建索引配置占位文件（O_CREATE|O_EXCL）：
+// 检查+创建原子化，防并发同名创建竞态（TOCTOU）。成功后由 SaveIndexConfig 覆盖占位。
+func AcquireIndexCreateLock(dir, name string) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(dir, name+".yaml"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	return f.Close()
+}
+
 // SaveIndexConfig 原子写索引配置：写 .tmp → 校验 → rename 覆盖 → 保留 .bak（Q4 原子写）
 func SaveIndexConfig(dir, name string, data []byte) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {

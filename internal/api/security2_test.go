@@ -121,8 +121,8 @@ func TestAttackConcurrentCreateSameIndex(t *testing.T) {
 	if ok > 1 {
 		t.Errorf("race: %d concurrent creates succeeded (should be 1)", ok)
 	}
-	// 文件应只存在一份
-	if n := countFiles(srv.indexesDir, "race"); n != 1 {
+	// 主文件应只存在一份（.bak 备份是正常产物，排除）
+	if n := countFiles(srv.indexesDir, "race.yaml"); n != 1 {
 		t.Errorf("race: %d race.yaml files", n)
 	}
 }
@@ -134,7 +134,7 @@ func countFiles(dir, prefix string) int {
 	}
 	n := 0
 	for _, e := range entries {
-		if strings.HasPrefix(e, prefix) {
+		if strings.HasPrefix(e, prefix) && !strings.HasSuffix(e, ".bak") {
 			n++
 		}
 	}

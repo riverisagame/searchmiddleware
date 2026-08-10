@@ -378,7 +378,8 @@ func (s *Server) handleCreateIndex(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "index name must be [a-zA-Z0-9_-], <=128 chars"})
 		return
 	}
-	if config.IndexConfigExists(s.indexesDir, req.Name) {
+	// 原子占位（O_EXCL）：检查+创建原子化，防并发同名竞态（TOCTOU）
+	if err := config.AcquireIndexCreateLock(s.indexesDir, req.Name); err != nil {
 		c.JSON(http.StatusConflict, gin.H{"code": 50001, "msg": "index already exists"})
 		return
 	}
