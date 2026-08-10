@@ -1,6 +1,11 @@
 <template>
   <el-card>
-    <template #header>手动同步</template>
+    <template #header>
+      <div class="section-head">
+        <span>手动同步</span>
+        <el-tag type="info" effect="plain">数据库 → Zinc</el-tag>
+      </div>
+    </template>
     <el-form inline>
       <el-form-item label="索引">
         <el-select v-model="indexName" placeholder="选择索引" style="width: 200px">
@@ -15,16 +20,21 @@
         </el-select>
       </el-form-item>
       <el-form-item v-if="syncType === 'by_ids'" label="IDs（逗号分隔）">
-        <el-input v-model="idsStr" placeholder="11073,11074" style="width: 200px" />
+        <el-input v-model="idsStr" placeholder="11073,11074" style="width: 240px" clearable />
       </el-form-item>
       <el-button type="primary" :loading="syncing" @click="doSync">执行</el-button>
-      <el-button @click="doReconcile('count')">对账(COUNT)</el-button>
-      <el-button @click="doReconcile('id')">对账(ID级)</el-button>
+      <el-button :loading="reconciling === 'count'" :disabled="!!reconciling || syncing" @click="doReconcile('count')">对账(COUNT)</el-button>
+      <el-button :loading="reconciling === 'id'" :disabled="!!reconciling || syncing" @click="doReconcile('id')">对账(ID级)</el-button>
     </el-form>
   </el-card>
 
   <el-card style="margin-top: 16px">
-    <template #header>运行历史</template>
+    <template #header>
+      <div class="section-head">
+        <span>运行历史 <em v-if="runs.length">{{ runs.length }} 条</em></span>
+        <el-button size="small" :loading="loading" @click="load">刷新</el-button>
+      </div>
+    </template>
     <el-table stripe :data="runs" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="index_name" label="索引" />
@@ -49,7 +59,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../api'
 
 const indexes = ref([])
@@ -59,6 +69,7 @@ const syncType = ref('incremental')
 const idsStr = ref('')
 const syncing = ref(false)
 const loading = ref(false)
+const reconciling = ref('')
 
 function statusType(s) {
   return { success: 'success', failed: 'danger', partial: 'warning', skipped: 'info', interrupted: 'warning' }[s] || 'info'
@@ -76,12 +87,24 @@ async function load() {
 
 async function doSync() {
   if (!indexName.value) return ElMessage.warning('请选择索引')
+  if (syncType.value === 'full') {
+    try {
+      await ElMessageBox.confirm(
+        `将对「${indexName.value}」执行全量重建，并切换线上别名。确认继续？`,
+        '确认全量重建',
+        { type: 'warning', confirmButtonText: '确认重建', cancelButtonText: '取消' },
+      )
+    } catch {
+      return
+    }
+  }
   syncing.value = true
   try {
     let ids
     if (syncType.value === 'by_ids') {
       ids = idsStr.value.split(',').map((s) => s.trim()).filter(Boolean)
       if (!ids.length) return ElMessage.warning('请输入 IDs')
+      if (ids.some((id) => !/^\d+$/.test(id))) return ElMessage.warning('IDs 只能是数字，使用英文逗号分隔')
     }
     await api.syncIndex(indexName.value, syncType.value, ids)
     ElMessage.success('同步已触发')
@@ -95,13 +118,32 @@ async function doSync() {
 
 async function doReconcile(type) {
   if (!indexName.value) return ElMessage.warning('请选择索引')
+  reconciling.value = type
   try {
     const r = await api.reconcile(indexName.value, type)
     ElMessage.success(`对账完成：索引 ${r.index_count} / 库 ${r.db_valid_count}，缺 ${JSON.parse(r.missing_ids || '[]').length} 条，脏 ${JSON.parse(r.extra_ids || '[]').length} 条`)
   } catch (e) {
     ElMessage.error(e.message)
+  } finally {
+    reconciling.value = ''
   }
 }
 
 onMounted(load)
 </script>
+
+<style scoped>
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.section-head em {
+  font-style: normal;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 8px;
+}
+</style>
