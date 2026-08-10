@@ -132,12 +132,21 @@ index:
 ./searchmiddleware.exe config:check
 ```
 
+## 运行配置（config/app.yaml）
+
+| 配置 | 说明 |
+|------|------|
+| `rate_limit.enabled/qps` | 搜索限流（每 IP 每秒，固定窗口；命中 429 计入 `/metrics`） |
+| `log_level` | 日志级别 `debug/info/warn/error`（默认 info；`debug` 输出 `[search]` 明细行） |
+| `security.jwt_secret` | 生产必改（禁止提交 git；可用 Docker Secret/KMS 卷挂载） |
+
 ## 测试
 
 ```bash
-go test ./...   # 配置解析/索引器组装/JWT/元数据 CRUD/Zinc mock（含故障转移）
+go test ./...                 # 配置解析/索引器组装/JWT/元数据 CRUD/Zinc mock（含故障转移）
+go test ./... -bench . -run '^$'   # 性能基准：查询构建 3.8µs / 文档扫描 18.5 万行/秒
 ```
 
 ## 需求文档
 
-见 `doc/`：需求总览、Grilling 决策记录（Q1-Q64 已确认）、架构、索引 schema、API 契约、GUI 设计、Zinc 能力调研、路线图。
+见 `doc/`：需求总览、Grilling 决策记录（Q1-Q64 已确认）、架构、索引 schema、API 契约、GUI 设计、Zinc 能力调研、路线图。变更记录见 `CHANGELOG.md`，部署/运维手册见 `docs/deploy.md`。
