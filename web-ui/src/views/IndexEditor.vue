@@ -87,44 +87,49 @@
                   <span>字段列表</span>
                   <el-button type="primary" plain size="small" @click="addField">+ 添加字段</el-button>
                 </div>
-                <el-table :data="form.index.fields" size="default" border height="520">
-                  <el-table-column label="字段名" min-width="120">
+                <el-table :data="form.index.fields" size="default" border height="520" style="width: 100%">
+                  <el-table-column label="字段名" width="380" show-overflow-tooltip>
                     <template #default="{ row }"><el-input v-model="row.name" size="default" /></template>
                   </el-table-column>
-                  <el-table-column label="类型" width="105">
+                  <el-table-column label="类型" width="180">
                     <template #default="{ row }">
-                      <el-select v-model="row.type" size="default">
+                      <el-select v-model="row.type" size="default" style="width: 100%">
                         <el-option v-for="t in ['text','keyword','numeric','float','date']" :key="t" :label="t" :value="t" />
                       </el-select>
                     </template>
                   </el-table-column>
-                  <el-table-column label="搜索" width="64" align="center">
+                  <el-table-column label="搜索" width="100" align="center">
                     <template #default="{ row }"><el-checkbox v-model="row.searchable" /></template>
                   </el-table-column>
-                  <el-table-column label="过滤" width="64" align="center">
+                  <el-table-column label="过滤" width="100" align="center">
                     <template #default="{ row }"><el-checkbox v-model="row.filter" /></template>
                   </el-table-column>
-                  <el-table-column label="排序" width="64" align="center">
+                  <el-table-column label="排序" width="100" align="center">
                     <template #default="{ row }"><el-checkbox v-model="row.sortable" /></template>
                   </el-table-column>
-                  <el-table-column label="聚合" width="64" align="center">
+                  <el-table-column label="聚合" width="100" align="center">
                     <template #default="{ row }"><el-checkbox v-model="row.agg" /></template>
                   </el-table-column>
-                  <el-table-column label="元素类型" width="110">
+                  <el-table-column label="数组" width="100" align="center">
                     <template #default="{ row }">
-                      <el-select v-model="row.element_type" size="default" clearable placeholder="数组元素">
+                      <el-checkbox v-model="row.is_array" @change="(v) => onArrayToggle(row, v)" />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="元素类型" width="170">
+                    <template #default="{ row }">
+                      <el-select v-model="row.element_type" size="default" clearable placeholder="数组元素" style="width: 100%" :disabled="!row.is_array">
                         <el-option v-for="t in ['long','integer','short','byte','double','float','text','keyword','boolean']" :key="t" :label="t" :value="t" />
                       </el-select>
                     </template>
                   </el-table-column>
-                  <el-table-column label="格式" width="150">
+                  <el-table-column label="格式" width="220">
                     <template #default="{ row }">
-                      <el-select v-model="row.format" size="default" clearable placeholder="日期格式">
+                      <el-select v-model="row.format" size="default" clearable placeholder="日期格式" style="width: 100%">
                         <el-option v-for="f in ['unix_timestamp','unix_milli','date_time','date','strict_date_optional_time','yyyy-MM-dd HH:mm:ss','2006-01-02 15:04:05']" :key="f" :label="f" :value="f" />
                       </el-select>
                     </template>
                   </el-table-column>
-                  <el-table-column width="60" align="center">
+                  <el-table-column width="80" align="center">
                     <template #default="{ $index }">
                       <el-button type="danger" plain size="small" @click="removeField($index)">删</el-button>
                     </template>
@@ -207,7 +212,13 @@ const form = reactive({
   index: { name: '', analyzer: 'jieba_std', search_analyzer: 'jieba_search', boost: [], fields: [] },
 })
 
-const EMPTY_FIELD = () => ({ name: '', type: 'text', searchable: true, filter: false, sortable: false, agg: false, element_type: '', format: '', analyzer: '', search_analyzer: '' })
+const EMPTY_FIELD = () => ({ name: '', type: 'text', searchable: true, filter: false, sortable: false, agg: false, is_array: false, element_type: '', format: '', analyzer: '', search_analyzer: '' })
+
+// 数组开关联动：勾选数组 → 默认元素类型 long；取消 → 清空元素类型
+function onArrayToggle(row, v) {
+  if (v && !row.element_type) row.element_type = 'long'
+  if (!v) row.element_type = ''
+}
 
 async function load() {
   indexes.value = (await api.listIndexes().catch(() => [])) || []
@@ -249,6 +260,7 @@ function fillForm(cfg) {
       filter: !!f.Filter,
       sortable: !!f.Sortable,
       agg: !!f.Agg,
+      is_array: !!f.ElementType,
       element_type: f.ElementType || '',
       format: f.Format || '',
       analyzer: f.Analyzer || '',
