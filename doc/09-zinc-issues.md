@@ -604,3 +604,13 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 | UI 全链路（真实索引名） | ✅ 200 + tokens 显示 |
 
 **结论**：BUG-011 闭环；剩余 400 为 ExplainStudio 默认索引名 "default" 的使用提示问题（低价值，未提）。
+
+---
+
+## 最新 Zinc 全量回归（2026-08-10，exe 含全部修复）✅
+
+- 4081 系真实测试全过：同义词/拼音/高亮/mapping-add/Analyze/BUG-007/bool 嵌套
+- 全量单测（11 包）0 FAIL
+- 4080 系 SKIP（本机 4080 被代理软件占用——已在此前 17/17 PASS 验证过）
+
+**结论**：Zinc 全部修复（6fc34d4/e2be85b/73c2d91/91b6a71/172eb0c 等）与 searchmiddleware 集成无回归。
