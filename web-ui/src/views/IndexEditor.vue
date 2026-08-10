@@ -93,7 +93,7 @@
                   </el-table-column>
                   <el-table-column label="类型" width="180">
                     <template #default="{ row }">
-                      <el-select v-model="row.type" size="default" style="width: 100%">
+                      <el-select v-model="row.type" size="default" style="width: 100%" @change="(v) => onTypeChange(row, v)">
                         <el-option v-for="t in ['text','keyword','numeric','float','date']" :key="t" :label="t" :value="t" />
                       </el-select>
                     </template>
@@ -124,7 +124,7 @@
                   </el-table-column>
                   <el-table-column label="格式" width="220">
                     <template #default="{ row }">
-                      <el-select v-model="row.format" size="default" clearable placeholder="日期格式" style="width: 100%">
+                      <el-select v-model="row.format" size="default" clearable placeholder="仅 date 类型" style="width: 100%" :disabled="row.type !== 'date'">
                         <el-option v-for="f in ['unix_timestamp','unix_milli','date_time','date','strict_date_optional_time','yyyy-MM-dd HH:mm:ss','2006-01-02 15:04:05']" :key="f" :label="f" :value="f" />
                       </el-select>
                     </template>
@@ -218,6 +218,15 @@ const EMPTY_FIELD = () => ({ name: '', type: 'text', searchable: true, filter: f
 function onArrayToggle(row, v) {
   if (v && !row.element_type) row.element_type = 'long'
   if (!v) row.element_type = ''
+}
+
+// 类型联动：格式仅 date 类型可用（其他类型清空格式）
+function onTypeChange(row, v) {
+  if (v === 'date') {
+    if (!row.format) row.format = 'unix_timestamp'
+  } else {
+    row.format = ''
+  }
 }
 
 async function load() {
