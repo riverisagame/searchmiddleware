@@ -614,3 +614,22 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 - 4080 系 SKIP（本机 4080 被代理软件占用——已在此前 17/17 PASS 验证过）
 
 **结论**：Zinc 全部修复（6fc34d4/e2be85b/73c2d91/91b6a71/172eb0c 等）与 searchmiddleware 集成无回归。
+
+---
+
+## 真实数据库同步闭环验证 + BUG-012（2026-08-10）✅ 核心链路通过
+
+**严格真实测试**（本机 MySQL sm_e2e → searchmiddleware → Zinc）：
+| 环节 | 结果 |
+|------|------|
+| 全量同步（3 条中文数据） | ✅ 搜索"发动机"/"轮胎"命中 |
+| 增量同步（DB 更新+新增） | ✅ 新文档可搜、文档数正确 |
+| 对账 count | ✅ IndexCount=4 = DBValidCount=4 |
+| attrs 合并（category_names） | ✅ 中文正常 |
+
+**过程中发现并修复（自身 P1 链）**：
+1. MySQL []byte 未转 string → 文档 Base64 乱码（convertValue + buildAttrRows）
+2. bulk 失败不标记索引 → 永久复用坏索引（MarkWriteIndexFailed + GetWriteIndex failed_ 前缀）
+
+**Zinc 侧 BUG-012 提报（P1 数据丢失）**：无 refresh bulk 在 WAL 污染后返回 200 但数据丢失（全局、重启暂恢复）——sm 已规避（bulk?refresh=true）。
+- 提报：`docs/issues/20260810_bug012_bulk_data_loss.md`（Zinc 仓库）
