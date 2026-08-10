@@ -583,3 +583,12 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 | GET /es/{不存在}/_alias | ✅ 0（不误报） |
 
 实现与提报方案 A 一致（索引名查不到 → alias 反查）。全量查询断言受历史残留索引干扰（环境脏数据，非代码问题）。
+
+---
+
+## SUG-009 核验（2026-08-10）⚠️ 部分解决 + 新 BUG-011
+
+**SUG-009（UI dist 过期）**：✅ dist 已重建（08-08 22:30 > 06-29），ExplainStudio 已上线（实测页面出现"分词实验室"）。
+
+**新发现 BUG-011**：ExplainStudio 诊断请求 401——`ExplainStudio.vue` 原生 fetch 无 Authorization（其他组件走统一拦截器）→ 分词诊断功能不可用。
+- 提报：`docs/issues/20260810_bug011_explainstudio_auth.md`（Zinc 仓库）
