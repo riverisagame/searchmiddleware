@@ -2,12 +2,53 @@
   <div>
     <el-alert v-if="healthError" :title="healthError" type="warning" show-icon :closable="false" style="margin-bottom: 16px" />
 
-    <el-row :gutter="16">
-      <el-col v-for="idx in indexes" :key="idx" :span="6">
+    <!-- 指标统计卡 -->
+    <el-row :gutter="16" style="margin-bottom: 16px">
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #e9effe; color: #3b6cf6">📚</div>
+          <div>
+            <div class="stat-value">{{ indexes.length }}</div>
+            <div class="stat-label">索引</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #e8f7ef; color: #34a853">🔄</div>
+          <div>
+            <div class="stat-value">{{ totalRuns }}</div>
+            <div class="stat-label">同步次数</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #fdf3e3; color: #f5a623">⏱️</div>
+          <div>
+            <div class="stat-value">{{ runningCount }}</div>
+            <div class="stat-label">运行中</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #fdeaea; color: #e5484d">⚠️</div>
+          <div>
+            <div class="stat-value">{{ failedCount }}</div>
+            <div class="stat-label">失败</div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 索引卡片 -->
+    <el-row :gutter="16" style="margin-bottom: 16px">
+      <el-col v-for="idx in indexes" :key="idx" :span="6" style="margin-bottom: 16px">
         <el-card shadow="hover" class="idx-card">
-          <div class="idx-name">{{ idx }}</div>
-          <div class="idx-status">
-            <el-tag :type="running[idx] ? 'warning' : 'success'" size="small">
+          <div class="idx-head">
+            <span class="idx-name">{{ idx }}</span>
+            <el-tag :type="running[idx] ? 'warning' : 'success'" size="small" effect="light" round>
               {{ running[idx] ? '同步中' : '正常' }}
             </el-tag>
           </div>
@@ -15,15 +56,19 @@
       </el-col>
     </el-row>
 
-    <el-card style="margin-top: 16px">
+    <el-card style="margin-top: 4px">
       <template #header>运行状态</template>
       <el-table :data="runs" size="small" v-loading="loading">
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="index_name" label="索引" />
-        <el-table-column prop="type" label="类型" width="90" />
+        <el-table-column prop="type" label="类型" width="90">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" :type="row.type === 'full' ? 'primary' : 'info'">{{ row.type }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
+            <el-tag :type="statusType(row.status)" size="small" effect="light" round>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="rows_count" label="行数" width="80" />
@@ -37,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '../api'
 
 const indexes = ref([])
@@ -45,6 +90,10 @@ const runs = ref([])
 const running = ref({})
 const loading = ref(false)
 const healthError = ref('')
+
+const totalRuns = computed(() => runs.value.length)
+const runningCount = computed(() => runs.value.filter((r) => r.status === 'running' || r.status === 'pending').length)
+const failedCount = computed(() => runs.value.filter((r) => r.status === 'failed' || r.status === 'partial').length)
 
 function statusType(s) {
   return { success: 'success', failed: 'danger', partial: 'warning', skipped: 'info', interrupted: 'warning' }[s] || 'info'
@@ -59,6 +108,11 @@ async function load() {
     ])
     indexes.value = idxList || []
     runs.value = (runList || []).slice(0, 20)
+    const runningSet = {}
+    for (const r of runList || []) {
+      if (r.status === 'running' || r.status === 'pending') runningSet[r.index_name] = true
+    }
+    running.value = runningSet
   } finally {
     loading.value = false
   }
@@ -69,7 +123,30 @@ onMounted(load)
 </script>
 
 <style scoped>
-.idx-card { margin-bottom: 16px; }
-.idx-name { font-size: 16px; font-weight: 600; }
-.idx-status { margin-top: 8px; }
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 12px;
+  padding: 18px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.stat-card:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+.stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+.stat-value { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.stat-label { font-size: 13px; color: var(--el-text-color-secondary); }
+
+.idx-card { margin-bottom: 0; }
+.idx-head { display: flex; align-items: center; justify-content: space-between; }
+.idx-name { font-size: 15px; font-weight: 600; }
 </style>
