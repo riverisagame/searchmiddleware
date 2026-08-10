@@ -510,7 +510,22 @@ func (s *Server) handleSyncIndex(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"code": 50001, "msg": err.Error()})
+		// 已运行 → 409；其他同步失败 → 500 简洁提示（技术细节进日志）
+		if strings.Contains(err.Error(), "already running") {
+			c.JSON(http.StatusConflict, gin.H{"code": 50001, "msg": "该索引同步已在运行中，请稍候"})
+			return
+		}
+		logx.Errorf("sync", "sync %s/%s failed: %v", name, req.Type, err)
+		msg := "同步失败"
+		switch {
+		case strings.Contains(err.Error(), "Access denied"):
+			msg = "同步失败：数据库连接被拒绝，请检查 datasources.yaml 账号配置"
+		case strings.Contains(err.Error(), "Unknown column"):
+			msg = "同步失败：SQL 引用了不存在的字段（如 update_time），请检查索引配置"
+		case strings.Contains(err.Error(), "connect"):
+			msg = "同步失败：无法连接数据库，请检查数据源网络/配置"
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": msg})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
