@@ -62,3 +62,14 @@ func TestSearchMetricsTopN(t *testing.T) {
 		t.Errorf("topN: want 50, got %d", len(top))
 	}
 }
+
+// Q39 指标热路径：并发 observe
+func BenchmarkSearchMetricsObserve(b *testing.B) {
+	m := newSearchMetrics()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.observe("手机", 5_000_000, false)
+		}
+	})
+}
