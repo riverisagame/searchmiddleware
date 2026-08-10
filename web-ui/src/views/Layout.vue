@@ -103,8 +103,8 @@ function onCommand(cmd) {
 }
 .side-menu .el-menu-item:hover { background: rgba(255, 255, 255, 0.06); }
 .side-menu .el-menu-item.is-active {
-  background: linear-gradient(90deg, var(--el-color-primary), #5a86f8);
-  box-shadow: 0 2px 8px rgba(59, 108, 246, 0.35);
+  background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-light-3));
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
 }
 
 .header {

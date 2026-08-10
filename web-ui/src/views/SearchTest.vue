@@ -37,25 +37,38 @@
     </el-card>
 
     <el-card v-if="result" style="margin-top: 16px">
-      <template #header>结果：{{ result.total }} 条（{{ result.took }}ms）</template>
-      <el-table :data="result.items" size="small" border>
-        <el-table-column label="ID" width="80">
-          <template #default="{ row }">{{ row.id }}</template>
-        </el-table-column>
-        <el-table-column label="分数" width="90">
-          <template #default="{ row }">{{ Number(row.score).toFixed(4) }}</template>
-        </el-table-column>
-        <el-table-column label="字段">
-          <template #default="{ row }">
-            <div v-for="(v, k) in row.fields" :key="k" class="field-row">
-              <span class="field-key">{{ k }}:</span>
-              <span v-if="row.highlight && row.highlight[k]"
-                v-html="Array.isArray(row.highlight[k]) ? row.highlight[k][0] : row.highlight[k]" />
-              <span v-else>{{ fmt(v) }}</span>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span>结果：{{ result.total }} 条（{{ result.took }}ms）</span>
+          <el-radio-group v-model="viewMode" size="small">
+            <el-radio-button value="table">表格</el-radio-button>
+            <el-radio-button value="json">JSON</el-radio-button>
+          </el-radio-group>
+        </div>
+      </template>
+
+      <template v-if="viewMode === 'table'">
+        <el-table :data="result.items" size="small" border>
+          <el-table-column label="ID" width="80">
+            <template #default="{ row }">{{ row.id }}</template>
+          </el-table-column>
+          <el-table-column label="分数" width="90">
+            <template #default="{ row }">{{ Number(row.score).toFixed(4) }}</template>
+          </el-table-column>
+          <el-table-column label="字段">
+            <template #default="{ row }">
+              <div v-for="(v, k) in row.fields" :key="k" class="field-row">
+                <span class="field-key">{{ k }}:</span>
+                <span v-if="row.highlight && row.highlight[k]"
+                  v-html="Array.isArray(row.highlight[k]) ? row.highlight[k][0] : row.highlight[k]" />
+                <span v-else>{{ fmt(v) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+
+      <pre v-else class="json-view mono">{{ resultJson }}</pre>
 
       <div v-if="result.aggs" style="margin-top: 16px">
         <el-divider>聚合</el-divider>
@@ -76,12 +89,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '../api'
 
 const indexes = ref([])
 const result = ref(null)
+const viewMode = ref('table')
+const resultJson = computed(() => (result.value ? JSON.stringify(result.value, null, 2) : ''))
 const form = reactive({
   index: '',
   keyword: '',
@@ -153,4 +168,14 @@ onMounted(async () => {
 .clickable { cursor: pointer; }
 .clickable:hover { background: #f5f7fa; border-radius: 4px; }
 .drill-tip { color: #909399; font-size: 12px; font-weight: normal; margin-left: 8px; }
+.json-view {
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 420px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
 </style>
