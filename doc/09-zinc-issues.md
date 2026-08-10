@@ -592,3 +592,15 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 
 **新发现 BUG-011**：ExplainStudio 诊断请求 401——`ExplainStudio.vue` 原生 fetch 无 Authorization（其他组件走统一拦截器）→ 分词诊断功能不可用。
 - 提报：`docs/issues/20260810_bug011_explainstudio_auth.md`（Zinc 仓库）
+
+---
+
+## BUG-011 修复验证（2026-08-10，172eb0c）✅ 认证已修复
+
+| 验证 | 结果 |
+|------|------|
+| POST /api/default/_debug/explain | ✅ 401→400（认证已修；400=索引 default 不存在） |
+| POST /api/{真实索引}/_debug/explain | ✅ 200 + debug_logs/tokens 完整 |
+| UI 全链路（真实索引名） | ✅ 200 + tokens 显示 |
+
+**结论**：BUG-011 闭环；剩余 400 为 ExplainStudio 默认索引名 "default" 的使用提示问题（低价值，未提）。
