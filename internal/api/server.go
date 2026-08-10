@@ -109,7 +109,7 @@ func (s *Server) Router() *gin.Engine {
 		v1.GET("/users", s.adminOnly(s.handleListUsers))
 		v1.POST("/users", s.adminOnly(s.handleCreateUser))
 
-		v1.GET("/sql/test", s.adminOnly(s.handleSQLTest))
+		v1.POST("/sql/test", s.adminOnly(s.handleSQLTest))
 	}
 
 	return r
