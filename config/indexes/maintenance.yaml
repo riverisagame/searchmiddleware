@@ -1,19 +1,12 @@
-# 示例索引配置（maintenance）
-# 参考 doc/04-index-schema.md
-
 source:
-  name: maintenance_source
   datasource: main
   sql_query: |
     SELECT maintenance_id, site_id, maintenance_name, sub_title,
            status, is_show, sort, price, update_time
     FROM shop_maintenance
     WHERE delete_time = 0
-  sql_attr_uint: [ maintenance_id, site_id, status, is_show, sort ]
-  sql_attr_float: [ price ]
-  sql_attr_timestamp: [ update_time ]
-  sql_attr_array: [ category_ids ]
-  sql_field_text: [ maintenance_name, sub_title ]
+    
+  incremental_field: update_time
   sql_joined_field:
     category_names: |
       SELECT r.maintenance_id, GROUP_CONCAT(c.category_name SEPARATOR ' ') AS val
@@ -21,27 +14,20 @@ source:
       JOIN shop_maintenance_category c ON c.category_id = r.category_id
       WHERE r.delete_time = 0 AND c.is_show = 1
       GROUP BY r.maintenance_id
-  incremental_field: update_time
-
+      
 index:
   name: maintenance
-  source: maintenance_source
-  alias: true
-  datasource: main
   analyzer: jieba_std
   search_analyzer: jieba_search
-  min_word_len: 2
   boost:
-    maintenance_name: 5.0
-    sub_title: 3.0
-    category_names: 1.0
+    category_names: 1
+    maintenance_name: 5
+    sub_title: 3
   fields:
-    maintenance_name: { type: text, searchable: true }
-    sub_title: { type: text, searchable: true }
+    category_ids: { type: keyword, filter: true, agg: true, element_type: long }
     category_names: { type: text, searchable: true }
+    maintenance_name: { type: text, searchable: true }
     price: { type: float, sortable: true, agg: true }
-    category_ids: { type: keyword, element_type: long, filter: true, agg: true }
     site_id: { type: keyword, filter: true, sortable: true, agg: true }
-    update_time: { type: date, format: unix_timestamp, sortable: true }
-  mapping_options:
-    dynamic: false
+    sub_title: { type: text, searchable: true }
+    update_time: { type: date, sortable: true, format: unix_timestamp }
