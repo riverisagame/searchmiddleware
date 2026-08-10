@@ -399,6 +399,10 @@ func (s *Server) handleCreateIndex(c *gin.Context) {
 
 func (s *Server) handleUpdateIndex(c *gin.Context) {
 	name := c.Param("name")
+	if !validIndexName(name) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid index name"})
+		return
+	}
 	if !config.IndexConfigExists(s.indexesDir, name) {
 		c.JSON(http.StatusNotFound, gin.H{"code": 40401, "msg": "index not found"})
 		return
@@ -432,6 +436,10 @@ func (s *Server) handleUpdateIndex(c *gin.Context) {
 
 func (s *Server) handleDeleteIndex(c *gin.Context) {
 	name := c.Param("name")
+	if !validIndexName(name) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid index name"})
+		return
+	}
 	if !config.IndexConfigExists(s.indexesDir, name) {
 		c.JSON(http.StatusNotFound, gin.H{"code": 40401, "msg": "index not found"})
 		return
@@ -685,6 +693,11 @@ func (s *Server) handleToggleSchedule(c *gin.Context) {
 		return
 	}
 	if err := s.sched.ToggleSchedule(uint(id), body.Enabled); err != nil {
+		// 记录不存在 → 404（而非 500）
+		if strings.Contains(err.Error(), "record not found") {
+			c.JSON(http.StatusNotFound, gin.H{"code": 40401, "msg": "schedule not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
 		return
 	}
