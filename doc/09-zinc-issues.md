@@ -645,3 +645,16 @@ Boost 系（QueryLevel/Mapping/HotReload/Diag*/BoolShould）、BUG002/003/004、
 4. 现象：bulk 200 但数据丢（静默）；refresh 无效（只 flush 内存）；refresh=true 正常（直写 segment）；重启恢复
 
 **修复建议（已提报）**：消费看门狗超时（阻塞跳过不占死全局）+ WAL 损坏自动重建 + 积压告警。
+
+---
+
+## BUG-012 修复验证（2026-08-10，5a9b9cf watchdog）✅ 通过
+
+| 验证 | 结果 |
+|------|------|
+| 中断 bulk（JSON 截断）后全局消费 | ✅ 正常（consume wal begin/end 连续） |
+| 无 refresh bulk 等消费后 | ✅ 文档数=1（数据落盘正常） |
+| refresh=true bulk | ✅ 正常 |
+| sm 规避（bulk?refresh=true） | ✅ 上轮 e2e 全链路过（全量/增量/搜索/对账） |
+
+**注**：中断复现停在 scanner 层（截断行被 best-effort 跳过，未达 WAL 损坏）；原始"Zinc 挂起 30s"场景当前构建未复现。watchdog（超时+卡死分片跳过+env 可配）代码审查确认实现正确。sm 侧 refresh=true 双保险始终生效。
