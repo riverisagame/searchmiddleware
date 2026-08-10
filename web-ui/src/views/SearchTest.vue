@@ -2,17 +2,17 @@
   <div>
     <el-card>
       <template #header>搜索测试</template>
-      <el-form inline>
+      <el-form inline @submit.prevent>
         <el-form-item label="索引">
           <el-select v-model="form.index" style="width: 180px" placeholder="选择索引">
             <el-option v-for="i in indexes" :key="i" :label="i" :value="i" />
           </el-select>
         </el-form-item>
         <el-form-item label="关键词">
-          <el-input v-model="form.keyword" placeholder="留空 = match_all" style="width: 220px" @keyup.enter="search" />
+          <el-input v-model="form.keyword" placeholder="留空 = match_all" style="width: 220px" clearable @keyup.enter="search" />
         </el-form-item>
         <el-form-item label="site_id">
-          <el-input v-model="form.site_id" placeholder="可选" style="width: 100px" />
+          <el-input v-model="form.site_id" placeholder="可选" style="width: 100px" clearable />
         </el-form-item>
         <el-form-item label="排序">
           <el-select v-model="form.sort" style="width: 150px" clearable>
@@ -24,16 +24,22 @@
         <el-form-item>
           <el-checkbox v-model="form.highlight">高亮</el-checkbox>
         </el-form-item>
-        <el-button type="primary" @click="search">搜索</el-button>
+        <el-button type="primary" size="default" @click="search" :loading="searching">🔍 搜索</el-button>
+        <el-button v-if="result" @click="resetSearch">清空</el-button>
       </el-form>
-      <el-form>
-        <el-form-item label="filter JSON">
-          <el-input v-model="form.filter" placeholder='{"status":1,"category_ids":[238],"price":{"gte":10,"lte":100}}' style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="aggs JSON">
-          <el-input v-model="form.aggs" placeholder='{"categories":{"field":"category_ids","size":20},"price_ranges":{"field":"price","ranges":[[0,100],[100,300]]}}' style="width: 100%" />
-        </el-form-item>
-      </el-form>
+
+      <el-collapse v-model="advOpen">
+        <el-collapse-item name="adv" title="高级选项（filter / aggs JSON）">
+          <el-form label-width="90px">
+            <el-form-item label="filter JSON">
+              <el-input v-model="form.filter" class="mono" placeholder='{"status":1,"category_ids":[238],"price":{"gte":10,"lte":100}}' />
+            </el-form-item>
+            <el-form-item label="aggs JSON">
+              <el-input v-model="form.aggs" class="mono" placeholder='{"categories":{"field":"category_ids","size":20},"price_ranges":{"field":"price","ranges":[[0,100],[100,300]]}}' />
+            </el-form-item>
+          </el-form>
+        </el-collapse-item>
+      </el-collapse>
     </el-card>
 
     <el-card v-if="result" style="margin-top: 16px">
@@ -96,6 +102,8 @@ import { api } from '../api'
 const indexes = ref([])
 const result = ref(null)
 const viewMode = ref('table')
+const advOpen = ref([])
+const searching = ref(false)
 const resultJson = computed(() => (result.value ? JSON.stringify(result.value, null, 2) : ''))
 const form = reactive({
   index: '',
@@ -147,12 +155,25 @@ async function search() {
   if (form.filter) params.filter = form.filter
   if (form.aggs) params.aggs = form.aggs
 
+  searching.value = true
   try {
     const data = await api.search(params)
     result.value = data
   } catch (e) {
     ElMessage.error(e.message)
+  } finally {
+    searching.value = false
   }
+}
+
+function resetSearch() {
+  result.value = null
+  form.keyword = ''
+  form.site_id = ''
+  form.sort = 'score'
+  form.highlight = false
+  form.filter = ''
+  form.aggs = ''
 }
 
 onMounted(async () => {
