@@ -19,6 +19,7 @@
           <div style="margin-top: 12px">
             <el-button type="primary" :loading="saving" @click="save">保存</el-button>
             <el-button type="danger" @click="remove">删除</el-button>
+            <el-button @click="openSqlTest">试跑 SQL</el-button>
           </div>
         </template>
         <el-empty v-else description="选择或新建索引配置" />
@@ -40,6 +41,24 @@
       <el-button type="primary" @click="createNew">创建</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="sqlDialog" title="试跑 SQL（仅 SELECT，自动 LIMIT 20）" width="720px">
+    <el-form label-width="80px">
+      <el-form-item label="数据源">
+        <el-input v-model="sqlDS" placeholder="datasources.yaml 中的名称，如 main" style="width: 220px" />
+      </el-form-item>
+      <el-form-item label="SQL">
+        <el-input v-model="sqlText" type="textarea" :rows="4" placeholder="SELECT id, name FROM your_table WHERE ..." />
+      </el-form-item>
+    </el-form>
+    <el-button type="primary" :loading="sqlLoading" @click="runSqlTest" style="margin-left: 80px">执行</el-button>
+    <el-table v-if="sqlResult" :data="sqlResult.rows" size="small" border style="margin-top: 12px" max-height="300">
+      <el-table-column v-for="col in sqlResult.columns" :key="col" :prop="col" :label="col" min-width="100" />
+    </el-table>
+    <template #footer>
+      <el-button @click="sqlDialog = false">关闭</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -54,6 +73,29 @@ const saving = ref(false)
 const newDialog = ref(false)
 const newName = ref('')
 const useTemplate = ref(false)
+const sqlDialog = ref(false)
+const sqlDS = ref('main')
+const sqlText = ref('')
+const sqlLoading = ref(false)
+const sqlResult = ref(null)
+
+function openSqlTest() {
+  sqlResult.value = null
+  sqlText.value = ''
+  sqlDialog.value = true
+}
+
+async function runSqlTest() {
+  if (!sqlDS.value || !sqlText.value) return ElMessage.warning('请填写数据源与 SQL')
+  sqlLoading.value = true
+  try {
+    sqlResult.value = await api.sqlTest(sqlDS.value, sqlText.value)
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    sqlLoading.value = false
+  }
+}
 
 async function load() {
   indexes.value = (await api.listIndexes().catch(() => [])) || []
