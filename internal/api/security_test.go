@@ -4,6 +4,7 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,9 +15,13 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"searchmiddleware/internal/auth"
 	"searchmiddleware/internal/config"
+	"searchmiddleware/internal/lifecycle"
 	"searchmiddleware/internal/metadata"
+	"searchmiddleware/internal/scheduler"
 	"searchmiddleware/internal/sync"
 	"searchmiddleware/internal/zinc"
 )
@@ -57,8 +62,8 @@ func newSecurityServer(t *testing.T) (*Server, *httptest.Server) {
 	srv.indexesDir = filepath.Join(tmpDir, "indexes")
 
 	// 创建用户（admin + viewer）
-	metaDB.Create(&metadata.User{Username: "admin", PasswordHash: bcryptHash("admin123"), Role: "admin"})
-	metaDB.Create(&metadata.User{Username: "viewer", PasswordHash: bcryptHash("viewer123"), Role: "viewer"})
+	metaDB.Create(&metadata.User{Username: "admin", Password: bcryptHash("admin123"), Role: "admin"})
+	metaDB.Create(&metadata.User{Username: "viewer", Password: bcryptHash("viewer123"), Role: "viewer"})
 
 	httpSrv := httptest.NewServer(srv.Router())
 	t.Cleanup(httpSrv.Close)
@@ -72,6 +77,19 @@ func bcryptHash(pw string) string {
 
 func nilLifecycle() *lifecycle.Manager {
 	return nil
+}
+
+// 测试用 scheduler（engine 传 nil——register/toggle 不触碰 engine）
+func newTestScheduler(t *testing.T) *scheduler.Scheduler {
+	t.Helper()
+	metaDB, err := metadata.NewDB("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := metaDB.AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	return scheduler.New(metaDB, nil, nil)
 }
 
 func doJSON(t *testing.T, base, method, path string, body interface{}, token string) (int, string) {

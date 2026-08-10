@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
 	"searchmiddleware/internal/auth"
@@ -373,6 +374,10 @@ func (s *Server) handleCreateIndex(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "index name cannot start with _"})
 		return
 	}
+	if !validIndexName(req.Name) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "index name must be [a-zA-Z0-9_-], <=128 chars"})
+		return
+	}
 	if config.IndexConfigExists(s.indexesDir, req.Name) {
 		c.JSON(http.StatusConflict, gin.H{"code": 50001, "msg": "index already exists"})
 		return
@@ -583,10 +588,46 @@ func (s *Server) handleListSchedules(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": schedules})
 }
 
+// validCronExpr 校验 cron 表达式（防非法/DoS 表达式入库）
+func validCronExpr(expr string) bool {
+	if expr == "" || len(expr) > 200 {
+		return false
+	}
+	// 兼容 5 段（分时日月周）与 6 段（秒级）表达式
+	parser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	_, err := parser.Parse(expr)
+	return err == nil
+}
+
+// validIndexName 索引名白名单：字母数字下划线连字符（防路径遍历/非法文件名）
+func validIndexName(name string) bool {
+	if name == "" || len(name) > 128 {
+		return false
+	}
+	for _, c := range name {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) handleCreateSchedule(c *gin.Context) {
 	var sch metadata.Schedule
 	if err := c.ShouldBindJSON(&sch); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid body"})
+		return
+	}
+	if sch.Type != "full" && sch.Type != "incremental" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "type must be full or incremental"})
+		return
+	}
+	if !validIndexName(sch.IndexName) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid index_name"})
+		return
+	}
+	if !validCronExpr(sch.CronExpr) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid cron expression"})
 		return
 	}
 	if s.sched == nil {
@@ -605,6 +646,10 @@ func (s *Server) handleUpdateSchedule(c *gin.Context) {
 	var sch metadata.Schedule
 	if err := c.ShouldBindJSON(&sch); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid body"})
+		return
+	}
+	if !validCronExpr(sch.CronExpr) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid cron expression"})
 		return
 	}
 	if err := s.meta.Model(&metadata.Schedule{}).Where("id = ?", id).Updates(map[string]interface{}{
