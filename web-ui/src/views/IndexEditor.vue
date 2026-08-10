@@ -89,7 +89,7 @@
                   <span>字段列表</span>
                   <el-button type="primary" plain size="small" @click="addField">+ 添加字段</el-button>
                 </div>
-                <el-table :data="form.index.fields" size="default" border height="520" style="width: 100%">
+                <el-table stripe :data="form.index.fields" size="default" border height="520" style="width: 100%">
                   <el-table-column label="字段名" width="380" show-overflow-tooltip>
                     <template #default="{ row }"><el-input v-model="row.name" size="default" /></template>
                   </el-table-column>
@@ -185,7 +185,7 @@
       </el-form-item>
     </el-form>
     <el-button type="primary" :loading="sqlLoading" @click="runSqlTest" style="margin-left: 80px">执行</el-button>
-    <el-table v-if="sqlResult" :data="sqlResult.rows" size="small" border style="margin-top: 12px" max-height="300">
+    <el-table stripe v-if="sqlResult" :data="sqlResult.rows" size="small" border style="margin-top: 12px" max-height="300">
       <el-table-column v-for="col in sqlResult.columns" :key="col" :prop="col" :label="col" min-width="100" />
     </el-table>
     <template #footer>

@@ -8,7 +8,7 @@
         </el-select>
       </div>
     </template>
-    <el-table :data="results" v-loading="loading">
+    <el-table stripe :data="results" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="index_name" label="索引" />
       <el-table-column prop="type" label="级别" width="90">

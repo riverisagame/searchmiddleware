@@ -15,7 +15,7 @@
         </div>
       </div>
     </template>
-    <el-table :data="logs" v-loading="loading" size="small">
+    <el-table stripe :data="logs" v-loading="loading" size="small">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="index_name" label="索引" />
       <el-table-column prop="level" label="级别" width="80">

@@ -48,7 +48,7 @@
       </template>
 
       <template v-if="viewMode === 'table'">
-        <el-table :data="result.items" size="small" border>
+        <el-table stripe :data="result.items" size="small" border>
           <el-table-column label="ID" width="80">
             <template #default="{ row }">{{ row.id }}</template>
           </el-table-column>

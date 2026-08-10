@@ -6,7 +6,7 @@
         <el-button type="primary" size="small" @click="showDialog = true">新建用户</el-button>
       </div>
     </template>
-    <el-table :data="users" v-loading="loading">
+    <el-table stripe :data="users" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="role" label="角色" width="100">

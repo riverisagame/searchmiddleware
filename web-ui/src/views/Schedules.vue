@@ -6,7 +6,7 @@
         <el-button type="primary" size="small" @click="showDialog = true">新建任务</el-button>
       </div>
     </template>
-    <el-table :data="schedules" v-loading="loading">
+    <el-table stripe :data="schedules" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="index_name" label="索引" />
       <el-table-column prop="type" label="类型" width="100" />

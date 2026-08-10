@@ -9,7 +9,7 @@
         </div>
       </div>
     </template>
-    <el-table :data="synonyms" v-loading="loading">
+    <el-table stripe :data="synonyms" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="word" label="词" width="150" />
       <el-table-column label="同义词">

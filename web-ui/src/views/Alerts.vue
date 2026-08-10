@@ -1,12 +1,12 @@
 <template>
   <el-card>
     <template #header>告警中心</template>
-    <el-table :data="alerts" v-loading="loading">
+    <el-table stripe :data="alerts" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="index_name" label="索引" />
       <el-table-column prop="level" label="级别" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.level === 'ERROR' ? 'danger' : 'warning'" size="small">{{ row.level }}</el-tag>
+          <el-tag :type="row.level === 'ERROR' ? 'danger' : row.level === 'WARN' ? 'warning' : 'info'" size="small" round>{{ row.level }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="message" label="消息" show-overflow-tooltip />

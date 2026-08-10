@@ -25,14 +25,14 @@
 
   <el-card style="margin-top: 16px">
     <template #header>运行历史</template>
-    <el-table :data="runs" v-loading="loading">
+    <el-table stripe :data="runs" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="index_name" label="索引" />
       <el-table-column prop="type" label="类型" width="90" />
       <el-table-column prop="trigger" label="触发" width="80" />
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
+          <el-tag :type="statusType(row.status)" size="small" round>{{ row.status }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="rows_count" label="行数" width="80" />

@@ -58,7 +58,7 @@
 
     <el-card style="margin-top: 4px">
       <template #header>运行状态</template>
-      <el-table :data="runs" size="small" v-loading="loading">
+      <el-table stripe :data="runs" size="small" v-loading="loading">
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="index_name" label="索引" />
         <el-table-column prop="type" label="类型" width="90">
