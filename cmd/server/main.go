@@ -180,19 +180,39 @@ func startGUIServer(port, apiPort int) {
 
 // createUserCmd 引导创建用户: searchmiddleware user:create <username> <password> [admin|viewer]
 func createUserCmd(args []string) {
-	if len(args) < 2 {
-		log.Fatal("usage: searchmiddleware user:create <username> <password> [role]")
+	configPath := "config/app.yaml"
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--config" {
+			configPath = args[i+1]
+			i++
+		}
 	}
-	username, password := args[0], args[1]
+	// 过滤已消费的 --config 参数
+	rest := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--config" {
+			i++
+			continue
+		}
+		rest = append(rest, args[i])
+	}
+	if len(rest) < 2 {
+		log.Fatal("usage: searchmiddleware user:create <username> <password> [role] [--config path]")
+	}
+	username, password := rest[0], rest[1]
 	role := "viewer"
-	if len(args) >= 3 {
-		role = args[2]
+	if len(rest) >= 3 {
+		role = rest[2]
 	}
 	if role != "admin" && role != "viewer" {
 		log.Fatalf("role must be admin or viewer, got %s", role)
 	}
 
-	metaDB, err := metadata.NewDB("data/metadata.db")
+	appCfg, err := config.LoadAppConfig(configPath)
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
+	metaDB, err := metadata.NewDB(filepath.Join(appCfg.DataDir, "metadata.db"))
 	if err != nil {
 		log.Fatalf("open metadata db: %v", err)
 	}
