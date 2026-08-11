@@ -1,11 +1,23 @@
 source:
   datasource: main
   sql_query: |
-    SELECT maintenance_id FROM shop_maintenance
+    SELECT maintenance_id, site_id, maintenance_name, sub_title, status, is_show, price, update_time
+    FROM shop_maintenance
+    WHERE delete_time = 0
   incremental_field: update_time
 index:
   name: maintenance
   analyzer: jieba_std
   search_analyzer: jieba_search
+  boost:
+    maintenance_name: 5.0
+    sub_title: 3.0
   fields:
     maintenance_id: { type: keyword, filter: true }
+    site_id: { type: keyword, filter: true }
+    maintenance_name: { type: text, searchable: true }
+    sub_title: { type: text, searchable: true }
+    status: { type: keyword, filter: true }
+    is_show: { type: keyword, filter: true }
+    price: { type: float, sortable: true, agg: true }
+    update_time: { type: date, format: unix_timestamp, sortable: true }

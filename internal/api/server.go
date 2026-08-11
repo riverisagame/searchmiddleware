@@ -654,13 +654,18 @@ func validCronExpr(expr string) bool {
 	return err == nil
 }
 
-// validIndexName 索引名校验：拒绝路径遍历/控制字符，放行中文/点号等业务命名
+// validIndexName 索引名校验：拒绝路径遍历/控制字符/平台保留字符，放行中文/点号等业务命名
 func validIndexName(name string) bool {
 	if name == "" || len(name) > 128 || name == "." || name == ".." {
 		return false
 	}
 	for _, c := range name {
 		if c == '/' || c == '\\' || c < 0x20 {
+			return false
+		}
+		// Windows 保留字符显式拒绝：避免依赖文件系统报错（跨平台行为不一致，CI/Linux 下校验失效）
+		switch c {
+		case ':', '*', '?', '"', '<', '>', '|':
 			return false
 		}
 	}

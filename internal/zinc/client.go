@@ -185,8 +185,10 @@ func (c *Client) Bulk(index string, docs []map[string]interface{}, clusterName s
 	}
 
 	// BUG-012 规避：不带 refresh 的 bulk 在 Zinc WAL 异常（中断写入污染）时返回 200 但数据丢失；
-	// 直接带 refresh=true 走 segment 路径，规避 WAL 丢失
-	req, err := c.newRequest("POST", url+"/es/"+index+"/_bulk?refresh=true", &buf)
+	// Zinc v0.69.5 已含 BUG-012 watchdog 修复，WAL 路径安全。
+	// 注意：refresh=true 会触发 bluge 立即刷段，与 WAL 消费并发导致 nil Snapshot panic（Zinc issue #2），
+	// 故回归 WAL 路径（refresh=false），由全量流程末尾的显式 Refresh 统一刷段。
+	req, err := c.newRequest("POST", url+"/es/"+index+"/_bulk", &buf)
 	if err != nil {
 		return err
 	}

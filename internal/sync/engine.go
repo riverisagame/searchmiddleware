@@ -105,14 +105,27 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 	}
 
 	_ = e.lifecycle.GetReadAlias(indexName)
-	writeIndex := e.lifecycle.GetWriteIndex(indexName)
-	if writeIndex == "" {
+	// 全量重建语义：总是新建 write 索引（零停机重建），绝不复用旧索引——
+	// 复用会导致写入已删除/陈旧的 write 索引（P0：metadata 残留旧索引名时全量静默写死）
+	var writeIndex string
+	if syncType == "full" {
 		var err error
 		writeIndex, err = e.lifecycle.CreateWriteIndex(indexName)
 		if err != nil {
 			e.logSync(indexName, syncType, "failed", 0, 0, 0, "create write index: "+err.Error())
 			e.createAlert(indexName, "ERROR", "create write index failed: "+err.Error())
 			return err
+		}
+	} else {
+		writeIndex = e.lifecycle.GetWriteIndex(indexName)
+		if writeIndex == "" {
+			var err error
+			writeIndex, err = e.lifecycle.CreateWriteIndex(indexName)
+			if err != nil {
+				e.logSync(indexName, syncType, "failed", 0, 0, 0, "create write index: "+err.Error())
+				e.createAlert(indexName, "ERROR", "create write index failed: "+err.Error())
+				return err
+			}
 		}
 	}
 

@@ -139,9 +139,17 @@ func (e *Engine) deleteDocs(indexName string, ids []string) {
 		return
 	}
 	readAlias := e.lifecycle.GetReadAlias(indexName)
-	for _, id := range ids {
-		if err := e.zinc.DeleteDoc(readAlias, id, indexCfg.Index.ZincCluster); err != nil {
-			logx.Errorf("reconcile", "delete doc %s/%s failed: %v", readAlias, id, err)
+	// Zinc GetDoc/DeleteDoc 不解析 alias（issue #2 观察）：先解析 alias → 物理索引，逐个删
+	phys, err := e.zinc.GetAlias(readAlias, indexCfg.Index.ZincCluster)
+	if err != nil || len(phys) == 0 {
+		logx.Errorf("reconcile", "resolve alias %s for delete failed: %v", readAlias, err)
+		return
+	}
+	for idx := range phys {
+		for _, id := range ids {
+			if err := e.zinc.DeleteDoc(idx, id, indexCfg.Index.ZincCluster); err != nil {
+				logx.Errorf("reconcile", "delete doc %s/%s failed: %v", idx, id, err)
+			}
 		}
 	}
 }
@@ -167,44 +175,92 @@ func (e *Engine) countIndex(index, clusterName string) (int64, error) {
 
 func (e *Engine) scrollAllIDs(index, clusterName string) ([]string, error) {
 	ids := make([]string, 0)
-	after := ""
-	// 防死循环兜底：search_after 无 sort 时 Zinc 可能重复返回（无限循环）；上限 10000 页 + after 前进校验
-	for page := 0; page < 10000; page++ {
-		body := map[string]interface{}{
-			"size":    1000,
-			"_source": false,
-			// search_after 需要稳定排序（否则 Zinc 可能忽略参数重复返回 → 死循环）
-			"sort":  []interface{}{"_id"},
-			"query": map[string]interface{}{"match_all": map[string]interface{}{}},
+	// Zinc v0.69.5 分页能力缺陷：search_after 失效、无 scroll、from+size 硬限 10000（result window）。
+	// 规避：_id 前缀分桶，桶内 from/size 深分页；桶内超限（>8000）递归按下一位数字细分（覆盖百万级）。
+	if err := e.collectBucket(index, clusterName, "", &ids); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (e *Engine) collectBucket(index, clusterName, prefix string, ids *[]string) error {
+	total, err := e.countPrefix(index, clusterName, prefix)
+	if err != nil {
+		return err
+	}
+	if total == 0 {
+		return nil
+	}
+	if total > 8000 {
+		for d := 0; d <= 9; d++ {
+			if err := e.collectBucket(index, clusterName, prefix+string(rune('0'+d)), ids); err != nil {
+				return err
+			}
 		}
-		if after != "" {
-			body["search_after"] = []interface{}{after}
+		return nil
+	}
+	pageSize := 1000
+	for from := 0; from < 10000; from += pageSize {
+		body := map[string]interface{}{
+			"size":    pageSize,
+			"from":    from,
+			"_source": false,
+			"sort":    []interface{}{map[string]interface{}{"_id": map[string]interface{}{"order": "asc"}}},
+			"query": map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": []interface{}{
+						map[string]interface{}{"match_all": map[string]interface{}{}},
+						map[string]interface{}{"prefix": map[string]interface{}{"_id": prefix}},
+					},
+				},
+			},
 		}
 		resp, err := e.zinc.Search(index, body, clusterName)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		hits, ok := resp["hits"].(map[string]interface{})
 		if !ok {
-			break
+			return nil
 		}
 		arr, ok := hits["hits"].([]interface{})
 		if !ok || len(arr) == 0 {
-			break
+			return nil
 		}
-		lastAfter := after
 		for _, h := range arr {
 			hm := h.(map[string]interface{})
 			if id, ok := hm["_id"].(string); ok {
-				ids = append(ids, id)
-				after = id
+				*ids = append(*ids, id)
 			}
 		}
-		if after == lastAfter {
-			break // after 未前进（Zinc 忽略 search_after）→ 防死循环
+		if len(arr) < pageSize {
+			return nil
 		}
 	}
-	return ids, nil
+	return nil
+}
+
+func (e *Engine) countPrefix(index, clusterName, prefix string) (int64, error) {
+	query := map[string]interface{}{"match_all": map[string]interface{}{}}
+	if prefix != "" {
+		query = map[string]interface{}{"prefix": map[string]interface{}{"_id": prefix}}
+	}
+	resp, err := e.zinc.Search(index, map[string]interface{}{
+		"size":  0,
+		"query": query,
+	}, clusterName)
+	if err != nil {
+		return 0, err
+	}
+	hits, ok := resp["hits"].(map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("unexpected search response")
+	}
+	total, ok := hits["total"].(map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("total missing")
+	}
+	return int64(total["value"].(float64)), nil
 }
 
 func (e *Engine) queryAllIDs(builder *indexer.DocumentBuilder, ds *sql.DB) ([]string, error) {
