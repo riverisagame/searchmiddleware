@@ -73,5 +73,6 @@ export const api = {
 
   listUsers: () => request('GET', '/api/v1/users'),
   createUser: (u) => request('POST', '/api/v1/users', u),
+  deleteUser: (id) => request('DELETE', '/api/v1/users/' + id),
   sqlTest: (datasource, sql) => request('POST', '/api/v1/sql/test', { datasource, sql }),
 }

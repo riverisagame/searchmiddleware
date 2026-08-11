@@ -15,6 +15,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="created_at" label="创建时间" />
+      <el-table-column label="操作" width="100">
+        <template #default="{ row }">
+          <el-button v-if="row.role !== 'admin'" type="danger" size="small" plain @click="remove(row)">删除</el-button>
+          <el-tag v-else type="info" size="small">内置</el-tag>
+        </template>
+      </el-table-column>
     </el-table>
   </el-card>
 
@@ -42,7 +48,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../api'
 
 const users = ref([])
@@ -65,6 +71,21 @@ async function create() {
     await api.createUser({ ...form })
     ElMessage.success('已创建')
     showDialog.value = false
+    load()
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
+async function remove(row) {
+  try {
+    await ElMessageBox.confirm(`确认删除用户「${row.username}」？`, '提示', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await api.deleteUser(row.id)
+    ElMessage.success('已删除')
     load()
   } catch (e) {
     ElMessage.error(e.message)
