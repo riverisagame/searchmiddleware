@@ -11,9 +11,9 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
-
 	"searchmiddleware/internal/api"
 	"searchmiddleware/internal/auth"
 	"searchmiddleware/internal/config"
@@ -63,7 +63,7 @@ func main() {
 		log.Fatalf("load indexes: %v", err)
 	}
 
-	metaDB, err := metadata.NewDB("data/metadata.db")
+	metaDB, err := metadata.NewDB(filepath.Join(appCfg.DataDir, "metadata.db"))
 	if err != nil {
 		log.Fatalf("open metadata db: %v", err)
 	}
