@@ -1,0 +1,13 @@
+.git
+.github
+.gitignore
+data
+docs
+doc
+cmd
+config
+web-ui
+internal
+*.log
+searchmiddleware.exe
+searchmiddleware.exe~
