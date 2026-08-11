@@ -109,6 +109,7 @@ func (s *Server) Router() *gin.Engine {
 
 		v1.GET("/users", s.adminOnly(s.handleListUsers))
 		v1.POST("/users", s.adminOnly(s.handleCreateUser))
+		v1.DELETE("/users/:id", s.adminOnly(s.handleDeleteUser))
 
 		v1.POST("/sql/test", s.adminOnly(s.handleSQLTest))
 	}
@@ -199,6 +200,18 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 		c.Set("claims", claims)
 		c.Next()
 	}
+}
+
+// currentUserID 从 JWT claims 取当前用户 ID（删除保护用）
+func (s *Server) currentUserID(c *gin.Context) uint {
+	claims, ok := c.Get("claims")
+	if !ok {
+		return 0
+	}
+	if cl, ok := claims.(*auth.Claims); ok {
+		return cl.UserID
+	}
+	return 0
 }
 
 func (s *Server) adminOnly(h gin.HandlerFunc) gin.HandlerFunc {
@@ -676,7 +689,7 @@ func (s *Server) handleCreateSchedule(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": "scheduler not initialized"})
 		return
 	}
-	if err := s.sched.AddSchedule(sch); err != nil {
+	if err := s.sched.AddSchedule(&sch); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
 		return
 	}
@@ -901,6 +914,34 @@ func (s *Server) handleListUsers(c *gin.Context) {
 	var users []metadata.User
 	s.meta.Select("id, username, role, created_at").Find(&users)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": users})
+}
+
+// handleDeleteUser 删除用户（禁止删除自己与其他 admin——防止锁死）
+func (s *Server) handleDeleteUser(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	if id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "id required"})
+		return
+	}
+	uid := s.currentUserID(c)
+	if uid == uint(id) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "不能删除当前登录用户"})
+		return
+	}
+	var target metadata.User
+	if err := s.meta.First(&target, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 40401, "msg": "user not found"})
+		return
+	}
+	if target.Role == "admin" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "不能删除 admin 用户"})
+		return
+	}
+	if err := s.meta.Delete(&target).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "ok"})
 }
 
 func (s *Server) handleCreateUser(c *gin.Context) {

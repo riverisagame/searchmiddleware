@@ -151,11 +151,11 @@ func (s *Scheduler) getEntryID(sch metadata.Schedule) cron.EntryID {
 	return s.entryIDs[sch.ID]
 }
 
-func (s *Scheduler) AddSchedule(sch metadata.Schedule) error {
-	if err := s.meta.Create(&sch).Error; err != nil {
+func (s *Scheduler) AddSchedule(sch *metadata.Schedule) error {
+	if err := s.meta.Create(sch).Error; err != nil {
 		return err
 	}
-	s.register(sch)
+	s.register(*sch)
 	return nil
 }
 
