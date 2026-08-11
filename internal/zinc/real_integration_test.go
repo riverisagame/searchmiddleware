@@ -14,11 +14,11 @@ import (
 // 验证 searchmiddleware zinc client 与真实 ZincSearch++ 的 API 兼容性
 func TestRealZincIntegration(t *testing.T) {
 	if !pingRealZinc(t) {
-		t.Skip("real zinc not available at localhost:4080")
+		t.Skip("real zinc not available at localhost:4081")
 	}
 
 	client := NewClient(&config.ZincConfig{
-		Clusters: map[string][]string{"default": {"http://localhost:4080"}},
+		Clusters: map[string][]string{"default": {"http://localhost:4081"}},
 		Default:  "default",
 		Username: "admin",
 		Password: "Complexpass#123",
@@ -206,7 +206,7 @@ func TestRealZincIntegration(t *testing.T) {
 		if err := client.AliasSwap(map[string][]string{alias: {index}}, nil, ""); err != nil {
 			t.Fatalf("alias add: %v", err)
 		}
-		got, err := client.GetAlias(index, "")
+		got, err := client.GetAlias(alias, "")
 		if err != nil {
 			t.Fatalf("get alias: %v", err)
 		}
@@ -222,7 +222,7 @@ func TestRealZincIntegration(t *testing.T) {
 
 func pingRealZinc(t *testing.T) bool {
 	client := NewClient(&config.ZincConfig{
-		Clusters: map[string][]string{"default": {"http://localhost:4080"}},
+		Clusters: map[string][]string{"default": {"http://localhost:4081"}},
 		Default:  "default",
 		Username: "admin",
 		Password: "Complexpass#123",

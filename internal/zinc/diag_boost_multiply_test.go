@@ -16,7 +16,7 @@ func TestRealZinc_DiagBoostMultiply(t *testing.T) {
 		t.Skip("real zinc not available")
 	}
 	client := NewClient(&config.ZincConfig{
-		Clusters: map[string][]string{"default": {"http://localhost:4080"}},
+		Clusters: map[string][]string{"default": {"http://localhost:4081"}},
 		Default:  "default",
 		Username: "admin",
 		Password: "Complexpass#123",

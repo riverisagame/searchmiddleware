@@ -15,7 +15,7 @@ func TestRealZinc_BoostDirectCompare(t *testing.T) {
 		t.Skip("real zinc not available")
 	}
 	client := NewClient(&config.ZincConfig{
-		Clusters: map[string][]string{"default": {"http://localhost:4080"}},
+		Clusters: map[string][]string{"default": {"http://localhost:4081"}},
 		Default:  "default",
 		Username: "admin",
 		Password: "Complexpass#123",
@@ -83,7 +83,7 @@ func TestRealZinc_BoostHotReload_SameIndex(t *testing.T) {
 		t.Skip("real zinc not available")
 	}
 	client := NewClient(&config.ZincConfig{
-		Clusters: map[string][]string{"default": {"http://localhost:4080"}},
+		Clusters: map[string][]string{"default": {"http://localhost:4081"}},
 		Default:  "default",
 		Username: "admin",
 		Password: "Complexpass#123",
@@ -134,7 +134,7 @@ func TestRealZinc_QueryLevelBoost(t *testing.T) {
 		t.Skip("real zinc not available")
 	}
 	client := NewClient(&config.ZincConfig{
-		Clusters: map[string][]string{"default": {"http://localhost:4080"}},
+		Clusters: map[string][]string{"default": {"http://localhost:4081"}},
 		Default:  "default",
 		Username: "admin",
 		Password: "Complexpass#123",

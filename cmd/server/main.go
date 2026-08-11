@@ -88,6 +88,11 @@ func main() {
 
 	apiServer := api.NewServer(appCfg, metaDB, zincClient, syncEngine, authMgr, indexCfgs, dsMap, schedulerMgr)
 
+	// 启动即回灌 DB + 清理孤儿 index_configs 行（文件唯一真相同步；幂等）
+	if err := apiServer.ReloadIndexConfigs(); err != nil {
+		log.Fatalf("reload index configs on start: %v", err)
+	}
+
 	// Q15 热加载：监听 config/indexes/*.yaml 变更 → 校验 → 回灌 DB → 更新内存
 	if watcher, err := config.NewWatcher(*indexesDir, func(name string) {
 		if err := apiServer.ReloadIndexConfigs(); err != nil {

@@ -13,13 +13,13 @@ import (
 // TestRealZinc_QueryBuilderBoost 真实 Zinc 端到端：QueryBuilder 权重 boost 生效验证
 func TestRealZinc_QueryBuilderBoost(t *testing.T) {
 	zc := zinc.NewClient(&config.ZincConfig{
-		Clusters: map[string][]string{"default": {"http://localhost:4080"}},
+		Clusters: map[string][]string{"default": {"http://localhost:4081"}},
 		Default:  "default",
 		Username: "admin",
 		Password: "Complexpass#123",
 	})
 	if !zincProbe(t, zc) {
-		t.Skip("real zinc not available at localhost:4080")
+		t.Skip("real zinc not available at localhost:4081")
 	}
 
 	index := fmt.Sprintf("sm_qb_e2e_%d", time.Now().UnixNano())

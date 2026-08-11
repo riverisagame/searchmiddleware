@@ -139,10 +139,7 @@ func (m *Manager) cleanupOldIndexes(indexName, readAlias, newWriteIndex string) 
 		}
 	}
 
-	for i, idx := range toDelete {
-		if i >= 2 {
-			break
-		}
+	for _, idx := range toDelete {
 		m.zinc.DeleteIndex(idx, m.indexCfgs[indexName].Index.ZincCluster)
 	}
 }

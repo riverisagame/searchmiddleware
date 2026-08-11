@@ -494,6 +494,15 @@ func (s *Server) reloadIndexConfigs() error {
 		}
 	}
 
+	// 清理孤儿行：配置文件已不存在但 DB 仍有记录（删除索引配置后残留）
+	var all []metadata.IndexConfig
+	s.meta.Find(&all)
+	for _, row := range all {
+		if _, ok := cfgs[row.Name]; !ok {
+			s.meta.Where("name = ?", row.Name).Delete(&metadata.IndexConfig{})
+		}
+	}
+
 	// 更新内存配置
 	s.indexCfgs = cfgs
 	return nil
