@@ -504,9 +504,27 @@ func (s *Server) handleSyncIndex(c *gin.Context) {
 	case "incremental":
 		err = s.engine.TriggerIncremental(name)
 	case "by_ids":
+		// 纵深防御：ids 数量与类型校验（前端已拦，后端双保险）
+		if len(req.IDs) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "ids required"})
+			return
+		}
+		if len(req.IDs) > 500 {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "ids too many (max 500)"})
+			return
+		}
+		for _, id := range req.IDs {
+			switch id.(type) {
+			case string, float64:
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "ids must be numbers or strings"})
+				return
+			}
+		}
 		err = s.engine.TriggerByIDs(name, req.IDs)
 	default:
-		err = s.engine.TriggerIncremental(name)
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "type must be full/incremental/by_ids"})
+		return
 	}
 
 	if err != nil {

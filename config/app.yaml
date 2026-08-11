@@ -10,7 +10,7 @@ security:
 zinc:
   clusters:
     default:
-      - http://localhost:4081
+      - http://127.0.0.1:4081
   default: default
   username: admin
   password: Complexpass#123

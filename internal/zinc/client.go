@@ -87,6 +87,8 @@ func (c *Client) ping(url string) bool {
 		return false
 	}
 	defer resp.Body.Close()
+	// 读空响应体使连接可复用（否则连接进 TIME_WAIT 堆积 → Windows 端口耗尽 connectex）
+	io.Copy(io.Discard, resp.Body)
 	return resp.StatusCode == 200
 }
 
@@ -265,6 +267,7 @@ func (c *Client) DeleteIndex(index string, clusterName string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 	return nil
 }
 
@@ -308,6 +311,7 @@ func (c *Client) AliasSwap(addMap, removeMap map[string][]string, clusterName st
 		return err
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode >= 500 {
 		c.markUnhealthy(url)
@@ -332,6 +336,7 @@ func (c *Client) Refresh(index, clusterName string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 	if resp.StatusCode >= 500 {
 		c.markUnhealthy(url)
 		return fmt.Errorf("refresh error: %d", resp.StatusCode)
@@ -462,6 +467,7 @@ func (c *Client) DeleteDoc(index, id, clusterName string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 	if resp.StatusCode >= 500 {
 		c.markUnhealthy(url)
 		return fmt.Errorf("delete doc error: %d", resp.StatusCode)

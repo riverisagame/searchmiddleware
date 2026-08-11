@@ -168,11 +168,14 @@ func (e *Engine) countIndex(index, clusterName string) (int64, error) {
 func (e *Engine) scrollAllIDs(index, clusterName string) ([]string, error) {
 	ids := make([]string, 0)
 	after := ""
-	for {
+	// 防死循环兜底：search_after 无 sort 时 Zinc 可能重复返回（无限循环）；上限 10000 页 + after 前进校验
+	for page := 0; page < 10000; page++ {
 		body := map[string]interface{}{
 			"size":    1000,
 			"_source": false,
-			"query":   map[string]interface{}{"match_all": map[string]interface{}{}},
+			// search_after 需要稳定排序（否则 Zinc 可能忽略参数重复返回 → 死循环）
+			"sort":  []interface{}{"_id"},
+			"query": map[string]interface{}{"match_all": map[string]interface{}{}},
 		}
 		if after != "" {
 			body["search_after"] = []interface{}{after}
@@ -189,12 +192,16 @@ func (e *Engine) scrollAllIDs(index, clusterName string) ([]string, error) {
 		if !ok || len(arr) == 0 {
 			break
 		}
+		lastAfter := after
 		for _, h := range arr {
 			hm := h.(map[string]interface{})
 			if id, ok := hm["_id"].(string); ok {
 				ids = append(ids, id)
 				after = id
 			}
+		}
+		if after == lastAfter {
+			break // after 未前进（Zinc 忽略 search_after）→ 防死循环
 		}
 	}
 	return ids, nil
