@@ -58,3 +58,32 @@
 - SM 修复版（8090/8091，pid 60060）
 - MySQL sm_e2e：10004 行（含边界数据）
 - 容器演练已清理（sm-deploy-test 已删）
+
+## 追加（Round 1.5：10 万行压力验证 + P2 收尾）
+
+### 新增修复（v0.1.4 / v0.1.5）
+| # | 问题 | 修复 | 提交 |
+|---|------|------|------|
+| 9 | 孤儿 index_configs 行（删除索引配置后残留） | reload 清理 + 启动即回灌 | 7f01fdb |
+| 10 | cleanupOldIndexes 24h 后仅清 2 个旧索引 | 清理全部旧 write 索引 | 7f01fdb |
+| 11 | 测试硬编码 4080（本地 WSL 干扰 401） | 统一改 4081 | 7f01fdb |
+| 12 | 前缀分桶递归漏"恰好等于父前缀"的 id（10k+ 漏 9 条） | 递归前补 exact term 查询 | dce93fb |
+
+### 10 万行压力验证（sm_e2e 100004 行）
+| 场景 | 结果 |
+|------|------|
+| 全量重建 | 7.1s，100003 docs（Zinc 未崩，WAL 路径稳定）✅ |
+| 对账 id 完整扫描 | 3.2s，100003=100003，missing=0 extra=0 ✅ |
+| 中文搜索 | Zinc 9ms，21180 命中 ✅ |
+| 过滤+聚合 | 29ms ✅ |
+| 并发查询稳定性 | 50 并发×2 轮得分一致 ✅ |
+
+### 重要观察
+- **Zinc 挂起锁**：客户端超时的长对账请求不传播取消，服务端 goroutine 持续占锁导致后续查询全部超时（半卡死）——建议对账限时（P2 待办）
+- **ZINC_MAX_RESULTS=100000 部署要求**：生产 Zinc 必须配置（result window 上限），否则 >10k 对账受限
+- 测试 flaky：TestRealZinc_QueryBuilderBoost 在包级并行时偶发（环境共享 Zinc），`-p 1` 串行全绿；CI 无 Zinc 全 skip 不受影响
+
+### 发布状态（v0.1.4 / v0.1.5 pipeline 全绿）
+- GitHub Release：v0.1.4/v0.1.5（linux amd64+arm64 二进制）✅
+- GHCR：0.1.4 / 0.1.5 / latest（multi-arch）✅
+- Docker Hub：待配置 secrets 后 dispatch 发布
