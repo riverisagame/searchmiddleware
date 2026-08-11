@@ -130,10 +130,11 @@ type Synonym struct {
 }
 
 type IndexConfig struct {
-	ID        uint   `json:"id" gorm:"primarykey"`
-	Name      string `json:"name" gorm:"size:128;uniqueIndex"`
-	Config    string `json:"config" gorm:"type:text"`
-	Version   string `json:"version" gorm:"size:64"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         uint   `json:"id" gorm:"primarykey"`
+	Name       string `json:"name" gorm:"size:128;uniqueIndex"`
+	Config     string `json:"config" gorm:"type:text"`     // 配置快照（reload 回灌）
+	WriteIndex string `json:"write_index" gorm:"size:256"` // 当前 write 索引名（reload 不覆盖）
+	Version    string `json:"version" gorm:"size:64"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }

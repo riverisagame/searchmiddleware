@@ -40,11 +40,23 @@ func (m *Manager) GetWriteIndex(indexName string) string {
 	if err := m.metadata.Where("name = ?", indexName).First(&idxConfig).Error; err != nil {
 		return ""
 	}
-	// failed_ 前缀 = 上次写入失败标记 → 视为无有效 write 索引（下次全量重建新索引）
-	if strings.HasPrefix(idxConfig.Config, "failed_") {
-		return ""
+	// WriteIndex 列优先（reload 不再覆盖它）
+	if idxConfig.WriteIndex != "" {
+		// failed_ 前缀 = 写入失败标记 → 触发新建
+		if strings.HasPrefix(idxConfig.WriteIndex, "failed_") {
+			return ""
+		}
+		return idxConfig.WriteIndex
 	}
-	return idxConfig.Config
+	// 兼容旧数据：Config 非 YAML（不含 source:）时视为 writeIndex 名
+	cfg := idxConfig.Config
+	if cfg != "" && !strings.Contains(cfg, "source:") {
+		if strings.HasPrefix(cfg, "failed_") {
+			return ""
+		}
+		return cfg
+	}
+	return ""
 }
 
 func (m *Manager) CreateWriteIndex(indexName string) (string, error) {
@@ -60,10 +72,18 @@ func (m *Manager) CreateWriteIndex(indexName string) (string, error) {
 		return "", err
 	}
 
-	if err := m.metadata.Create(&metadata.IndexConfig{
-		Name:    indexName,
-		Config:  writeIndex,
-		Version: fmt.Sprintf("%d", time.Now().UnixMilli()),
+	// upsert：Name 已存在（reload 建过）→ 更新 WriteIndex；否则创建
+	var existing metadata.IndexConfig
+	if err := m.metadata.Where("name = ?", indexName).First(&existing).Error; err == nil {
+		if err := m.metadata.Model(&metadata.IndexConfig{}).Where("name = ?", indexName).
+			Updates(map[string]interface{}{"write_index": writeIndex, "version": fmt.Sprintf("%d", time.Now().UnixMilli())}).Error; err != nil {
+			return "", err
+		}
+	} else if err := m.metadata.Create(&metadata.IndexConfig{
+		Name:       indexName,
+		WriteIndex: writeIndex,
+		Config:     writeIndex,
+		Version:    fmt.Sprintf("%d", time.Now().UnixMilli()),
 	}).Error; err != nil {
 		return "", err
 	}
@@ -128,7 +148,7 @@ func (m *Manager) cleanupOldIndexes(indexName, readAlias, newWriteIndex string) 
 }
 
 func (m *Manager) MarkWriteIndexFailed(indexName, writeIndex string) {
-	m.metadata.Exec("UPDATE index_configs SET config = ? WHERE name = ?", "failed_"+writeIndex, indexName)
+	m.metadata.Exec("UPDATE index_configs SET write_index = ? WHERE name = ?", "failed_"+writeIndex, indexName)
 }
 
 func (m *Manager) buildMapping(indexName string) map[string]interface{} {

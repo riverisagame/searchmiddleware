@@ -187,6 +187,9 @@ func (c *Client) Bulk(index string, docs []map[string]interface{}, clusterName s
 	// BUG-012 规避：不带 refresh 的 bulk 在 Zinc WAL 异常（中断写入污染）时返回 200 但数据丢失；
 	// 直接带 refresh=true 走 segment 路径，规避 WAL 丢失
 	req, err := c.newRequest("POST", url+"/es/"+index+"/_bulk?refresh=true", &buf)
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/x-ndjson")
 
 	resp, err := c.httpClient.Do(req)
@@ -237,6 +240,9 @@ func (c *Client) CreateIndex(index string, mapping map[string]interface{}, clust
 	data, _ := json.Marshal(body)
 
 	req, err := c.newRequest("PUT", url+"/es/"+index, bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -303,6 +309,9 @@ func (c *Client) AliasSwap(addMap, removeMap map[string][]string, clusterName st
 	data, _ := json.Marshal(body)
 
 	req, err := c.newRequest("POST", url+"/es/_aliases", bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
