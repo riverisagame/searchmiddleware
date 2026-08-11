@@ -45,11 +45,11 @@
           <el-tag :type="statusType(row.status)" size="small" round>{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="rows_count" label="行数" width="80" />
-      <el-table-column label="耗时(ms)" width="90">
+      <el-table-column prop="rows_count" label="行数" width="80" class-name="num" />
+      <el-table-column label="耗时(ms)" width="90" class-name="num">
         <template #default="{ row }">{{ row.duration_ms }}</template>
       </el-table-column>
-      <el-table-column label="吞吐" width="90">
+      <el-table-column label="吞吐" width="90" class-name="num">
         <template #default="{ row }">{{ row.throughput?.toFixed?.(1) ?? row.throughput }}</template>
       </el-table-column>
       <el-table-column prop="started_at" label="开始时间" />

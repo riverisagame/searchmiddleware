@@ -131,6 +131,55 @@ html.dark .stat-value { text-shadow: 0 0 12px rgba(34, 211, 238, 0.25); }
 .el-dialog__body { padding: 18px 22px; }
 .el-dialog__footer { padding: 14px 22px 18px; border-top: 1px solid var(--el-border-color-lighter); }
 
+/* ===== 数值列（数据表格专业对齐）===== */
+.num {
+  font-family: var(--app-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.el-table .num { text-align: right; }
+.el-table .num .cell { padding-right: 16px; }
+
+/* ===== 焦点可见性（WCAG AA 键盘导航）===== */
+:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.el-button:focus-visible, .el-input__wrapper:focus-visible, .el-select__wrapper:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 1px;
+}
+
+/* ===== 页面入场动效（stagger，尊重 reduced-motion）===== */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.el-main > * { animation: fade-up 0.35s ease-out both; }
+.stat-card { animation: fade-up 0.35s ease-out both; }
+.stat-card:nth-child(2) { animation-delay: 0.05s; }
+.stat-card:nth-child(3) { animation-delay: 0.1s; }
+.stat-card:nth-child(4) { animation-delay: 0.15s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== 响应式（小屏适配）===== */
+@media (max-width: 768px) {
+  .el-main { padding: 12px !important; }
+  .el-card__body { padding: 14px; }
+  :root { --app-sidebar-width: 64px; }
+  .side-menu span { display: none; }
+  .logo-text { display: none; }
+  .logo { justify-content: center; }
+}
+
 /* ===== 滚动条 ===== */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #c8d0dc; border-radius: 5px; }

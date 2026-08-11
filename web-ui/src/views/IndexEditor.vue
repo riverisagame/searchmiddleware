@@ -63,7 +63,7 @@
               <!-- Tab 2：属性（属性 SQL + 权重） -->
               <el-tab-pane label="属性" name="attrs">
                 <div class="section-title">属性 SQL（GROUP_CONCAT 合并）</div>
-                <div v-for="(jf, i) in form.source.joined_fields" :key="i" style="margin-bottom: 16px">
+                <div v-for="(jf, i) in form.source.joined_fields" :key="jf._uid" style="margin-bottom: 16px">
                   <div style="display: flex; gap: 8px; margin-bottom: 6px">
                     <el-input v-model="jf.key" placeholder="字段名，如 category_names" style="width: 220px" />
                     <el-button type="danger" plain @click="removeJoined(i)">删除</el-button>
@@ -73,7 +73,7 @@
                 <el-button type="primary" plain @click="addJoined">+ 添加属性 SQL</el-button>
 
                 <div class="section-title" style="margin-top: 24px">权重（boost）</div>
-                <div v-for="(b, i) in form.index.boost" :key="i" style="display: flex; gap: 8px; margin-bottom: 10px; max-width: 480px">
+                <div v-for="(b, i) in form.index.boost" :key="b._uid" style="display: flex; gap: 8px; margin-bottom: 10px; max-width: 480px">
                   <el-input v-model="b.key" placeholder="字段名" />
                   <el-input v-model="b.value" placeholder="权重" style="width: 140px" />
                   <el-button type="danger" plain @click="removeBoost(i)">删除</el-button>
@@ -220,6 +220,8 @@ const form = reactive({
   index: { name: '', analyzer: 'jieba_std', search_analyzer: 'jieba_search', boost: [], fields: [] },
 })
 
+let uidSeq = 0
+
 const EMPTY_FIELD = () => ({ name: '', type: 'text', searchable: true, filter: false, sortable: false, agg: false, is_array: false, element_type: '', format: '', analyzer: '', search_analyzer: '' })
 
 // 数组开关联动：勾选数组 → 默认元素类型 long；取消 → 清空元素类型
@@ -260,13 +262,13 @@ function fillForm(cfg) {
   form.source.datasource = src.DataSource || ''
   form.source.sql_query = src.SQLQuery || ''
   form.source.incremental_field = src.IncrementalField || ''
-  form.source.joined_fields = Object.entries(src.SQLJoinedField || {}).map(([k, v]) => ({ key: k, value: v }))
+  form.source.joined_fields = Object.entries(src.SQLJoinedField || {}).map(([k, v]) => ({ _uid: ++uidSeq, key: k, value: v }))
 
   const idx = cfg.Index || {}
   form.index.name = idx.Name || current.value
   form.index.analyzer = idx.Analyzer || 'jieba_std'
   form.index.search_analyzer = idx.SearchAnalyzer || 'jieba_search'
-  form.index.boost = Object.entries(idx.Boost || {}).map(([k, v]) => ({ key: k, value: String(v) }))
+  form.index.boost = Object.entries(idx.Boost || {}).map(([k, v]) => ({ _uid: ++uidSeq, key: k, value: String(v) }))
 
   const fields = []
   for (const [name, f] of Object.entries(idx.Fields || {})) {
@@ -289,9 +291,9 @@ function fillForm(cfg) {
 
 function addField() { form.index.fields.push(EMPTY_FIELD()) }
 function removeField(i) { form.index.fields.splice(i, 1) }
-function addBoost() { form.index.boost.push({ key: '', value: '1.0' }) }
+function addBoost() { form.index.boost.push({ _uid: ++uidSeq, key: '', value: '1.0' }) }
 function removeBoost(i) { form.index.boost.splice(i, 1) }
-function addJoined() { form.source.joined_fields.push({ key: '', value: '' }) }
+function addJoined() { form.source.joined_fields.push({ _uid: ++uidSeq, key: '', value: '' }) }
 function removeJoined(i) { form.source.joined_fields.splice(i, 1) }
 
 function toYaml() {
