@@ -1,33 +1,11 @@
 source:
   datasource: main
   sql_query: |
-    SELECT maintenance_id, site_id, maintenance_name, sub_title,
-           status, is_show, sort, price, update_time
-    FROM shop_maintenance
-    WHERE delete_time = 0
-    
+    SELECT maintenance_id FROM shop_maintenance
   incremental_field: update_time
-  sql_joined_field:
-    category_names: |
-      SELECT r.maintenance_id, GROUP_CONCAT(c.category_name SEPARATOR ' ') AS val
-      FROM shop_maintenance_category_relation r
-      JOIN shop_maintenance_category c ON c.category_id = r.category_id
-      WHERE r.delete_time = 0 AND c.is_show = 1
-      GROUP BY r.maintenance_id
-      
 index:
   name: maintenance
   analyzer: jieba_std
   search_analyzer: jieba_search
-  boost:
-    category_names: 1
-    maintenance_name: 5
-    sub_title: 3
   fields:
-    category_ids: { type: keyword, filter: true, agg: true, element_type: long }
-    category_names: { type: text, searchable: true }
-    maintenance_name: { type: text, searchable: true }
-    price: { type: float, sortable: true, agg: true }
-    site_id: { type: keyword, filter: true, sortable: true, agg: true }
-    sub_title: { type: text, searchable: true }
-    update_time: { type: date, sortable: true, format: unix_timestamp }
+    maintenance_id: { type: keyword, filter: true }
