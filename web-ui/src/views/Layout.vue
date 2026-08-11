@@ -44,19 +44,94 @@
       <el-main class="main">
         <router-view />
       </el-main>
+
+      <!-- Cmd+K 命令面板 -->
+      <div v-if="cmdOpen" class="cmd-overlay" @click.self="cmdOpen = false">
+        <div class="cmd-panel">
+          <div class="cmd-input-row">
+            <el-icon style="color: var(--el-text-color-secondary)"><Search /></el-icon>
+            <input v-model="cmdQuery" ref="cmdInput" class="cmd-input" placeholder="输入页面名或索引名搜索… 按 Esc 关闭" @keydown.esc="cmdOpen = false" />
+          </div>
+          <div class="cmd-list">
+            <div v-for="item in cmdResults" :key="item.key" class="cmd-item" @click="cmdGo(item)">
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+              <em class="cmd-type">{{ item.type }}</em>
+            </div>
+            <div v-if="!cmdResults.length" class="cmd-empty">无匹配结果</div>
+          </div>
+        </div>
+      </div>
     </el-container>
   </el-container>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Odometer, Refresh, Timer, Document, Checked, Setting, Link, Bell, User, Search, Moon, Sunny } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { api } from '../api'
 
 const router = useRouter()
 const auth = useAuthStore()
 const isDark = ref(document.documentElement.classList.contains('dark'))
+
+// Cmd+K 命令面板
+const cmdOpen = ref(false)
+const cmdQuery = ref('')
+const cmdInput = ref(null)
+const cmdIndexes = ref([])
+
+const PAGES = [
+  { key: 'dashboard', label: '仪表盘', icon: Odometer, path: '/dashboard', type: '页面' },
+  { key: 'search-test', label: '搜索测试', icon: Search, path: '/search-test', type: '页面' },
+  { key: 'sync', label: '同步中心', icon: Refresh, path: '/sync', type: '页面' },
+  { key: 'schedules', label: '定时任务', icon: Timer, path: '/schedules', type: '页面' },
+  { key: 'logs', label: '日志中心', icon: Document, path: '/logs', type: '页面' },
+  { key: 'reconcile', label: '对账中心', icon: Checked, path: '/reconcile', type: '页面' },
+  { key: 'indexes', label: '索引配置', icon: Setting, path: '/indexes', type: '页面' },
+  { key: 'synonyms', label: '同义词', icon: Link, path: '/synonyms', type: '页面' },
+  { key: 'alerts', label: '告警中心', icon: Bell, path: '/alerts', type: '页面' },
+  { key: 'users', label: '用户管理', icon: User, path: '/users', type: '页面', admin: true },
+]
+
+const cmdResults = computed(() => {
+  const q = cmdQuery.value.trim().toLowerCase()
+  const pages = PAGES.filter((p) => !p.admin || auth.isAdmin)
+  const items = pages
+    .filter((p) => p.label.includes(q) || p.key.includes(q))
+    .map((p) => ({ ...p, type: '页面' }))
+  if (q) {
+    for (const i of cmdIndexes.value) {
+      if (String(i).toLowerCase().includes(q)) {
+        items.push({ key: 'idx-' + i, label: i, icon: Setting, path: '/indexes', type: '索引' })
+      }
+    }
+  }
+  return items.slice(0, 12)
+})
+
+async function cmdGo(item) {
+  cmdOpen.value = false
+  cmdQuery.value = ''
+  if (item.type === '索引') {
+    router.push(item.path)
+  } else {
+    router.push(item.path)
+  }
+}
+
+function onKeydown(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    cmdOpen.value = !cmdOpen.value
+    if (cmdOpen.value) {
+      cmdQuery.value = ''
+      nextTick(() => cmdInput.value?.focus())
+    }
+  }
+}
 
 onMounted(() => {
   const saved = localStorage.getItem('sm_theme')
@@ -77,6 +152,12 @@ function onCommand(cmd) {
     router.push('/login')
   }
 }
+
+onMounted(() => {
+  api.listIndexes().then((list) => { cmdIndexes.value = list || [] }).catch(() => {})
+  window.addEventListener('keydown', onKeydown)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
@@ -144,4 +225,62 @@ function onCommand(cmd) {
 .main { background: var(--el-bg-color-page); padding: 24px; }
 html.dark .header { border-bottom-color: var(--el-border-color-lighter); }
 html.dark .aside { background: linear-gradient(180deg, #141c30 0%, #0e1424 100%); }
+
+/* Cmd+K 命令面板 */
+.cmd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  z-index: 3000;
+  animation: fade-up 0.15s ease-out;
+}
+.cmd-panel {
+  width: 520px;
+  max-width: 90vw;
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.cmd-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.cmd-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: var(--el-text-color-primary);
+}
+.cmd-list { max-height: 320px; overflow-y: auto; padding: 6px; }
+.cmd-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--el-text-color-regular);
+}
+.cmd-item:hover { background: var(--el-fill-color-light); color: var(--el-text-color-primary); }
+.cmd-type {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+.cmd-empty { padding: 24px; text-align: center; color: var(--el-text-color-secondary); font-size: 13px; }
 </style>

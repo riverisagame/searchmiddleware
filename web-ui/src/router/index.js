@@ -18,6 +18,7 @@ const routes = [
       { path: 'synonyms', component: () => import('../views/Synonyms.vue'), meta: { title: '同义词' } },
       { path: 'alerts', component: () => import('../views/Alerts.vue'), meta: { title: '告警中心' } },
       { path: 'users', component: () => import('../views/Users.vue'), meta: { title: '用户管理' } },
+      { path: ':pathMatch(.*)*', component: () => import('../views/NotFound.vue'), meta: { title: '404' } },
     ],
   },
 ]
