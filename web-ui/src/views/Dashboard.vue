@@ -118,7 +118,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { api } from '../api'
 
 const indexes = ref([])
@@ -182,7 +182,13 @@ async function load() {
   api.health().catch((e) => { healthError.value = '后端健康检查异常：' + e.message })
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  refreshTimer = setInterval(load, 30000) // 产品级：运行状态自动刷新
+})
+onBeforeUnmount(() => clearInterval(refreshTimer))
+
+let refreshTimer = null
 </script>
 
 <style scoped>

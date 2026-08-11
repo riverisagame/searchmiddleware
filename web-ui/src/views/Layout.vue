@@ -23,6 +23,13 @@
       <el-header class="header">
         <span class="page-title">{{ $route.meta.title || '' }}</span>
         <div class="header-right">
+          <!-- 系统状态指示 -->
+          <el-tooltip :content="`Zinc ${sysHealth.zinc ? '正常' : '异常'} · 每 30s 检测`" placement="bottom">
+            <span class="sys-status" @click="checkHealth">
+              <i :class="['sys-dot', sysHealth.zinc ? 'ok' : 'bad']"></i>
+              <span class="sys-label">Zinc</span>
+            </span>
+          </el-tooltip>
           <el-tooltip :content="isDark ? '切换到亮色' : '切换到暗色'">
             <el-button circle size="small" @click="toggleTheme">
               <el-icon><Moon v-if="!isDark" /><Sunny v-else /></el-icon>
@@ -76,6 +83,19 @@ import { api } from '../api'
 const router = useRouter()
 const auth = useAuthStore()
 const isDark = ref(document.documentElement.classList.contains('dark'))
+
+// 系统健康指示
+const sysHealth = ref({ zinc: false })
+let healthTimer = null
+async function checkHealth() {
+  try {
+    const r = await fetch('/health')
+    const j = await r.json()
+    sysHealth.value = { zinc: !!j.zinc }
+  } catch {
+    sysHealth.value = { zinc: false }
+  }
+}
 
 // Cmd+K 命令面板
 const cmdOpen = ref(false)
@@ -156,8 +176,13 @@ function onCommand(cmd) {
 onMounted(() => {
   api.listIndexes().then((list) => { cmdIndexes.value = list || [] }).catch(() => {})
   window.addEventListener('keydown', onKeydown)
+  checkHealth()
+  healthTimer = setInterval(checkHealth, 30000)
 })
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  clearInterval(healthTimer)
+})
 </script>
 
 <style scoped>
@@ -210,6 +235,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   padding: 0 20px;
 }
 .header-right { display: flex; align-items: center; gap: 14px; }
+.sys-status { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 10px; border-radius: 20px; background: var(--el-fill-color-lighter); }
+.sys-dot { width: 8px; height: 8px; border-radius: 50%; }
+.sys-dot.ok { background: #34a853; box-shadow: 0 0 6px rgba(52, 168, 83, 0.5); }
+.sys-dot.bad { background: #e5484d; box-shadow: 0 0 6px rgba(229, 72, 77, 0.5); }
+.sys-label { font-size: 12px; color: var(--el-text-color-secondary); font-family: var(--app-font-mono); }
 .page-title { font-size: 16px; font-weight: 600; }
 .user-chip { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .user-name { font-size: 14px; }

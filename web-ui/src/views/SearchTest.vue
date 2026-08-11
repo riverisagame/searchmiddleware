@@ -46,10 +46,13 @@
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
           <span>结果：{{ result.total }} 条（{{ result.took }}ms）</span>
-          <el-radio-group v-model="viewMode" size="small">
-            <el-radio-button value="table">表格</el-radio-button>
-            <el-radio-button value="json">JSON</el-radio-button>
-          </el-radio-group>
+          <div style="display: flex; align-items: center; gap: 10px">
+            <el-button v-if="result.items?.length" size="small" @click="exportCsv">导出 CSV</el-button>
+            <el-radio-group v-model="viewMode" size="small">
+              <el-radio-button value="table">表格</el-radio-button>
+              <el-radio-button value="json">JSON</el-radio-button>
+            </el-radio-group>
+          </div>
         </div>
       </template>
 
@@ -174,6 +177,32 @@ function resetSearch() {
   form.highlight = false
   form.filter = ''
   form.aggs = ''
+}
+
+// 导出结果为 CSV
+function exportCsv() {
+  const items = result.value?.items || []
+  if (!items.length) return ElMessage.warning('无数据可导出')
+  const headers = ['id', 'score']
+  const fields = new Set()
+  for (const it of items) for (const k of Object.keys(it.fields || {})) fields.add(k)
+  headers.push(...fields)
+  const esc = (v) => {
+    const s = String(v ?? '')
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+  }
+  const lines = [headers.join(',')]
+  for (const it of items) {
+    const row = [it.id, it.score, ...[...fields].map((f) => esc((it.fields || {})[f]))]
+    lines.push(row.join(','))
+  }
+  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `search_${form.index || 'result'}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 onMounted(async () => {
