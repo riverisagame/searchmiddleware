@@ -192,6 +192,12 @@ func (e *Engine) collectBucket(index, clusterName, prefix string, ids *[]string)
 		return nil
 	}
 	if total > 8000 {
+		// 递归前补取"恰好等于父前缀"的 id（如 "1" 不属于任何 "1x" 子桶；重复无害，最终 set 去重）
+		if prefix != "" {
+			if err := e.collectExactID(index, clusterName, prefix, ids); err != nil {
+				return err
+			}
+		}
 		for d := 0; d <= 9; d++ {
 			if err := e.collectBucket(index, clusterName, prefix+string(rune('0'+d)), ids); err != nil {
 				return err
@@ -235,6 +241,32 @@ func (e *Engine) collectBucket(index, clusterName, prefix string, ids *[]string)
 		}
 		if len(arr) < pageSize {
 			return nil
+		}
+	}
+	return nil
+}
+
+func (e *Engine) collectExactID(index, clusterName, id string, ids *[]string) error {
+	resp, err := e.zinc.Search(index, map[string]interface{}{
+		"size":    1,
+		"_source": false,
+		"query":   map[string]interface{}{"term": map[string]interface{}{"_id": id}},
+	}, clusterName)
+	if err != nil {
+		return err
+	}
+	hits, ok := resp["hits"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	arr, ok := hits["hits"].([]interface{})
+	if !ok {
+		return nil
+	}
+	for _, h := range arr {
+		hm := h.(map[string]interface{})
+		if got, ok := hm["_id"].(string); ok {
+			*ids = append(*ids, got)
 		}
 	}
 	return nil
