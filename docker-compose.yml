@@ -1,15 +1,17 @@
 # 搜索中间件 + ZincSearch++ 部署编排
 # 用法：docker compose up -d
-# 定制版 Zinc 需先构建镜像：cd D:\claudeprj\zincsearch && docker build -t zincsearchplusplus:latest .
+# Zinc 使用已发布镜像（dockerdoo/zincsearchplusplus，含 v0.70.0 修复：#2 WAL panic / #3 分页配置 / #4 挂起锁 / #5 mapping boost）
 
 services:
   zinc:
-    image: zincsearchplusplus:latest
+    image: dockerdoo/zincsearchplusplus:0.70.0
     container_name: sm-zinc
     restart: unless-stopped
     environment:
       ZINC_SERVER_ADDRESS: "0.0.0.0"
       ZINC_SERVER_PORT: "4080"
+      # 深度分页上限（对账/全量扫描 >10k 必需，ES max_result_window 语义）
+      ZINC_SEARCH_MAX_RESULT_WINDOW: "100000"
       ZINC_SERVER_AUTH_USER: "${ZINC_USER:-admin}"
       ZINC_SERVER_AUTH_PASSWORD: "${ZINC_PASSWORD:-Complexpass#123}"
       # 中文分析：jieba 后端

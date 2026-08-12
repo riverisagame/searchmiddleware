@@ -11,18 +11,26 @@
 ## Docker Compose 部署
 
 ```bash
-# 1. 构建定制版 Zinc 镜像（含 jieba/拼音/词典支持）
-cd D:\claudeprj\zincsearch
-docker build -t zincsearchplusplus:latest .
-
-# 2. 启动
+# 1. 启动（Zinc 用已发布镜像 dockerdoo/zincsearchplusplus:0.70.0，SM 用 ghcr 镜像）
 cd D:\prj\searchmiddleware
 docker compose up -d
+
+# 2. 首次启动创建管理员（容器内执行）
+docker exec sm-middleware /usr/local/bin/searchmiddleware user:create admin <密码> admin --config /app/config/app.yaml
 
 # 3. 验证
 curl http://localhost:8090/health          # {"status":"ok",...}
 curl http://localhost:8091/                # Web GUI
 ```
+
+**版本要求**：
+- Zinc 镜像 ≥ **v0.70.0**（含关键修复：WAL 合并 panic #2、result window 配置化 #3、长查询挂起锁 #4、mapping boost 生效 #5）
+- SM 镜像 `ghcr.io/riverisagame/searchmiddleware:latest`
+
+**Zinc 环境变量（生产必需）**：
+| 变量 | 值 | 说明 |
+|------|-----|------|
+| `ZINC_SEARCH_MAX_RESULT_WINDOW` | `100000`（按数据量调整） | 深度分页上限，对账/全量扫描 >1 万行必需；默认 10000 会导致 id 级对账失败 |
 
 ## 数据卷与备份
 
