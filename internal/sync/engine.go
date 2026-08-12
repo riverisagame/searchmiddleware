@@ -65,6 +65,23 @@ func NewEngine(
 	}
 }
 
+// SetIndexCfgs 热加载传播：配置变更后由 API 层调用，同步更新 engine 的配置/索引器/lifecycle
+// （否则新索引无法同步、删除的索引继续同步——P1）
+func (e *Engine) SetIndexCfgs(cfgs map[string]*config.IndexConfig) {
+	e.indexCfgs = cfgs
+	indexerMap := make(map[string]*indexer.DocumentBuilder)
+	for name, idxCfg := range cfgs {
+		ds := e.dsMap[idxCfg.Source.DataSource]
+		if ds != nil {
+			indexerMap[name] = indexer.NewDocumentBuilder(idxCfg, ds)
+		}
+	}
+	e.indexer = indexerMap
+	if e.lifecycle != nil {
+		e.lifecycle.SetIndexCfgs(cfgs)
+	}
+}
+
 func (e *Engine) Start() {
 	e.wg.Add(1)
 	go e.retryFailedBatchesLoop()
@@ -156,7 +173,10 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 		return err
 	}
 
-	throughput := float64(result.Count) / (float64(durationMs) / 1000)
+	throughput := float64(0)
+	if durationMs > 0 {
+		throughput = float64(result.Count) / (float64(durationMs) / 1000)
+	}
 
 	if syncType == "full" {
 		if err := e.lifecycle.PrepareWriteIndex(indexName, writeIndex, result.Count); err != nil {
@@ -188,11 +208,13 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 			e.logSync(indexName, syncType, "partial", result.Count, durationMs, throughput, fmt.Sprintf("failed_ids: %d", len(failedIDs)))
 			e.saveFailedIDs(indexName, syncType, failedIDs)
 			e.createAlert(indexName, "WARN", fmt.Sprintf("bulk partial failure: %d docs", len(failedIDs)))
-			// 全量写入失败：标记 write 索引失效（GetWriteIndex 识别 failed_ 前缀 → 下次全量重建新索引）
-			// 否则复用坏索引（如 Zinc bulk 挂起后的索引）→ 永久失败
 			if syncType == "full" {
 				e.lifecycle.MarkWriteIndexFailed(indexName, writeIndex)
 			}
+			// P0 修复：部分失败禁止继续——
+			// full：不执行 90% gate/SwitchAlias（坏索引不得上线）
+			// incremental：游标不前移（失败行不会被游标永久丢弃）
+			return fmt.Errorf("bulk partial failure: %d docs", len(failedIDs))
 		} else {
 			e.logSync(indexName, syncType, "success", result.Count, durationMs, throughput, "")
 		}
@@ -224,7 +246,12 @@ func (e *Engine) runSync(indexName, syncType string, ids []interface{}) error {
 	}
 
 	if syncType == "full" {
-		expectedCount := e.getExpectedCount(indexName)
+		expectedCount, err := e.getExpectedCount(indexName)
+		if err != nil {
+			e.logSync(indexName, syncType, "failed", result.Count, durationMs, throughput, "expected count failed: "+err.Error())
+			e.lifecycle.MarkWriteIndexFailed(indexName, writeIndex)
+			return fmt.Errorf("expected count failed: %w", err)
+		}
 		if expectedCount > 0 && float64(result.Count)/float64(expectedCount) < 0.9 {
 			e.logSync(indexName, syncType, "failed", result.Count, durationMs, throughput, fmt.Sprintf("90%% gate failed: got %d, expected %d", result.Count, expectedCount))
 			e.lifecycle.MarkWriteIndexFailed(indexName, writeIndex)
@@ -260,28 +287,33 @@ func (e *Engine) updateCursor(indexName, cursor string) {
 		indexName, cursor, time.Now())
 }
 
-func (e *Engine) getExpectedCount(indexName string) int64 {
+func (e *Engine) getExpectedCount(indexName string) (int64, error) {
 	indexCfg := e.indexCfgs[indexName]
 	if indexCfg == nil {
-		return 0
+		return 0, fmt.Errorf("index config not found: %s", indexName)
 	}
 
 	upper := strings.ToUpper(indexCfg.Source.SQLQuery)
 	fromIdx := strings.Index(upper, "FROM")
 	if fromIdx == -1 {
-		return 0
+		return 0, fmt.Errorf("no FROM in sql_query")
 	}
 	// 修复：大小写不敏感截断 SELECT 子句（旧实现 Replace 大小写敏感 → 替换失败 → Scan 报错 → 恒 0 → 90% gate 失效）
 	countQuery := "SELECT COUNT(*) " + indexCfg.Source.SQLQuery[fromIdx:]
 
 	ds := e.dsMap[indexCfg.Source.DataSource]
 	if ds == nil {
-		return 0
+		// 数据源缺失视为无期望值（配置层面容错，与 indexer 构建一致）；SQL 执行错误则必须传播
+		return 0, nil
 	}
 
 	var count int64
-	ds.QueryRow(countQuery).Scan(&count)
-	return count
+	if err := ds.QueryRow(countQuery).Scan(&count); err != nil {
+		// P0 修复：count 失败必须向上传播——静默当 0 会让 90% gate 自动关闭，
+		// 恰好是源库故障时最需要校验的时刻
+		return 0, err
+	}
+	return count, nil
 }
 
 func (e *Engine) logSync(indexName, syncType, status string, rows int, durationMs int64, throughput float64, msg string) {

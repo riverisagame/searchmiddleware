@@ -26,7 +26,7 @@ func TestCreateWriteIndexTwiceDistinct(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	metaDB, err := metadata.NewDB("file::memory:?cache=shared")
+	metaDB, err := metadata.NewDB("file:twicedistinct?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatalf("meta: %v", err)
 	}

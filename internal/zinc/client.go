@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -254,7 +255,16 @@ func (c *Client) CreateIndex(index string, mapping map[string]interface{}, clust
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 && resp.StatusCode != 400 {
+	// 400 可能是"索引已存在"（可容忍）也可能是 mapping/参数非法——读取响应体区分：
+	// 已存在 → 幂等成功；其他 4xx → 报错（否则非法 mapping 被静默吞掉，重建上线错 mapping）
+	if resp.StatusCode == 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		if strings.Contains(string(bodyBytes), "already exists") || strings.Contains(string(bodyBytes), "exist") {
+			return nil
+		}
+		return fmt.Errorf("create index error: 400 - %s", string(bodyBytes))
+	}
+	if resp.StatusCode >= 400 {
 		c.markUnhealthy(url)
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("create index error: %d - %s", resp.StatusCode, string(bodyBytes))
@@ -269,6 +279,9 @@ func (c *Client) DeleteIndex(index string, clusterName string) error {
 	}
 
 	req, err := c.newRequest("DELETE", url+"/es/"+index, nil)
+	if err != nil {
+		return err
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		c.markUnhealthy(url)
@@ -322,11 +335,14 @@ func (c *Client) AliasSwap(addMap, removeMap map[string][]string, clusterName st
 		return err
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+	bodyBytes, _ := io.ReadAll(resp.Body)
 
-	if resp.StatusCode >= 500 {
-		c.markUnhealthy(url)
-		return fmt.Errorf("alias error: %d", resp.StatusCode)
+	// 4xx 也必须报错：别名切换失败若被静默吞掉，重建"成功"但读的还是旧索引
+	if resp.StatusCode >= 400 {
+		if resp.StatusCode >= 500 {
+			c.markUnhealthy(url)
+		}
+		return fmt.Errorf("alias error: %d - %s", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
 }
@@ -365,6 +381,9 @@ func (c *Client) GetAlias(alias string, clusterName string) (map[string]interfac
 	}
 
 	req, err := c.newRequest("GET", url+"/es/_alias", nil)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		c.markUnhealthy(url)

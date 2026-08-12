@@ -76,7 +76,7 @@ func (s *Server) Router() *gin.Engine {
 	v1 := r.Group("/api/v1", s.authMiddleware(), s.rateLimitMiddleware())
 	{
 		v1.GET("/search", s.handleSearch)
-		v1.POST("/notify", s.handleNotify)
+		v1.POST("/notify", s.adminOnly(s.handleNotify))
 
 		v1.GET("/indexes", s.adminOrViewer(s.handleListIndexes))
 		v1.GET("/indexes/:name", s.adminOrViewer(s.handleGetIndex))
@@ -398,6 +398,9 @@ func (s *Server) handleCreateIndex(c *gin.Context) {
 	}
 
 	if err := config.SaveIndexConfig(s.indexesDir, req.Name, []byte(req.Content)); err != nil {
+		// 占位文件泄漏（P1）：校验失败必须清理占位，否则空 yaml 残留 →
+		// 下次启动 LoadIndexConfig 失败 log.Fatalf 服务起不来
+		config.ReleaseIndexCreateLock(s.indexesDir, req.Name)
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": err.Error()})
 		return
 	}
@@ -505,6 +508,10 @@ func (s *Server) reloadIndexConfigs() error {
 
 	// 更新内存配置
 	s.indexCfgs = cfgs
+	// 热加载传播：engine/lifecycle 必须同步（否则新索引无法同步、删除的索引继续同步——P1）
+	if s.engine != nil {
+		s.engine.SetIndexCfgs(cfgs)
+	}
 	return nil
 }
 
@@ -653,12 +660,13 @@ func (s *Server) handleListSchedules(c *gin.Context) {
 }
 
 // validCronExpr 校验 cron 表达式（防非法/DoS 表达式入库）
+// 注意：运行时 scheduler 用 cron.New(cron.WithSeconds())（秒必选，仅 6 段），
+// 校验必须与之一致——否则 5 段表达式通过校验但调度永不触发（P1 静默失效）
 func validCronExpr(expr string) bool {
 	if expr == "" || len(expr) > 200 {
 		return false
 	}
-	// 兼容 5 段（分时日月周）与 6 段（秒级）表达式
-	parser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 	_, err := parser.Parse(expr)
 	return err == nil
 }
@@ -836,6 +844,11 @@ func (s *Server) handleCreateSynonym(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid body"})
 		return
 	}
+	// 防词典污染：Word 含换行/逗号会破坏 Zinc 词典文件格式（每行 word,synonym）
+	if syn.Word == "" || strings.ContainsAny(syn.Word, ",\n\r") {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "word must not contain comma or newline"})
+		return
+	}
 	if err := s.meta.Create(&syn).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
 		return
@@ -849,16 +862,23 @@ func (s *Server) handleCreateSynonym(c *gin.Context) {
 
 func (s *Server) handleUpdateSynonym(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
+	if id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid id"})
+		return
+	}
 	var syn metadata.Synonym
 	if err := c.ShouldBindJSON(&syn); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid body"})
 		return
 	}
-	s.meta.Model(&metadata.Synonym{}).Where("id = ?", id).Updates(map[string]interface{}{
+	if err := s.meta.Model(&metadata.Synonym{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"word":     syn.Word,
 		"synonyms": syn.Synonyms,
 		"indexes":  syn.Indexes,
-	})
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+		return
+	}
 	s.reloadSynonyms()
 	if err := s.exportSynonymsToZinc(); err != nil {
 		logx.Errorf("synonym", "sync to zinc failed: %v", err)
@@ -868,7 +888,14 @@ func (s *Server) handleUpdateSynonym(c *gin.Context) {
 
 func (s *Server) handleDeleteSynonym(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	s.meta.Delete(&metadata.Synonym{}, id)
+	if id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 40001, "msg": "invalid id"})
+		return
+	}
+	if err := s.meta.Delete(&metadata.Synonym{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 50001, "msg": err.Error()})
+		return
+	}
 	s.reloadSynonyms()
 	if err := s.exportSynonymsToZinc(); err != nil {
 		logx.Errorf("synonym", "sync to zinc failed: %v", err)
@@ -1054,13 +1081,18 @@ func (s *Server) handleSQLTest(c *gin.Context) {
 	}})
 }
 
-// forceLimit 确保 SQL 带 LIMIT 20（无则追加）
+// forceLimit 确保 SQL 带 LIMIT 20（无则追加）：
+// 用户自带的 LIMIT 可能超过预览上限（如 LIMIT 1000000）→ 统一改写为 LIMIT n，
+// 防止 SQLTest 成为内存 DoS 入口（P1）
 func forceLimit(sql string, n int) string {
 	upper := strings.ToUpper(sql)
-	if strings.Contains(upper, "LIMIT") {
-		return sql
+	idx := strings.Index(upper, "LIMIT")
+	if idx == -1 {
+		return sql + fmt.Sprintf(" LIMIT %d", n)
 	}
-	return sql + fmt.Sprintf(" LIMIT %d", n)
+	// 从 LIMIT 处截断，替换为固定上限（忽略原 limit 参数，含注释绕过场景）
+	head := sql[:idx]
+	return strings.TrimRight(head, " \t;") + fmt.Sprintf(" LIMIT %d", n)
 }
 
 func jsonUnmarshal(s string, v interface{}) error {

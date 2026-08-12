@@ -33,7 +33,10 @@ func (e *Engine) ReconcileCount(indexName string) (*metadata.ReconcileResult, er
 	if err != nil {
 		return nil, fmt.Errorf("count index: %w", err)
 	}
-	dbCount := e.getExpectedCount(indexName)
+	dbCount, err := e.getExpectedCount(indexName)
+	if err != nil {
+		return nil, fmt.Errorf("expected count: %w", err)
+	}
 
 	result := &metadata.ReconcileResult{
 		IndexName:    indexName,
@@ -106,6 +109,10 @@ func (e *Engine) FixReconcile(indexName string, resultID uint) error {
 	if err := e.metadata.First(&rec, resultID).Error; err != nil {
 		return err
 	}
+	// 防误删：对账记录必须属于当前索引（否则拿别的索引的 extra_ids 删本索引真实文档）
+	if rec.IndexName != indexName {
+		return fmt.Errorf("reconcile record %d belongs to index %s, not %s", resultID, rec.IndexName, indexName)
+	}
 
 	// 1. 重建缺失文档
 	if len(rec.MissingIDs) > 0 {
@@ -170,7 +177,12 @@ func (e *Engine) countIndex(index, clusterName string) (int64, error) {
 	if !ok {
 		return 0, fmt.Errorf("total missing")
 	}
-	return int64(total["value"].(float64)), nil
+	value, ok := total["value"].(float64)
+	if !ok {
+		// 响应结构异常（Zinc 异常返回）→ 返回错误而非裸断言 panic（进程崩溃）
+		return 0, fmt.Errorf("total value missing")
+	}
+	return int64(value), nil
 }
 
 func (e *Engine) scrollAllIDs(index, clusterName string) ([]string, error) {
@@ -198,8 +210,17 @@ func (e *Engine) collectBucket(index, clusterName, prefix string, ids *[]string)
 				return err
 			}
 		}
-		for d := 0; d <= 9; d++ {
-			if err := e.collectBucket(index, clusterName, prefix+string(rune('0'+d)), ids); err != nil {
+		// 数字 0-9 + 字母 a-z + 其他前缀（非数字开头的 _id，如 UUID，必须枚举到）
+		digits := "0123456789abcdefghijklmnopqrstuvwxyz"
+		for _, c := range digits {
+			if err := e.collectBucket(index, clusterName, prefix+string(c), ids); err != nil {
+				return err
+			}
+		}
+		// 其余字符开头（大写字母、下划线等）：按首字符字符集兜底——用前缀查询无法枚举的
+		// 字符走"非 alnum"通配：直接对根层做 size=8000 的翻页（覆盖非 alnum 前缀）
+		if prefix == "" {
+			if err := e.collectBucket(index, clusterName, "_", ids); err != nil {
 				return err
 			}
 		}
@@ -292,7 +313,11 @@ func (e *Engine) countPrefix(index, clusterName, prefix string) (int64, error) {
 	if !ok {
 		return 0, fmt.Errorf("total missing")
 	}
-	return int64(total["value"].(float64)), nil
+	value, ok := total["value"].(float64)
+	if !ok {
+		return 0, fmt.Errorf("total value missing")
+	}
+	return int64(value), nil
 }
 
 func (e *Engine) queryAllIDs(builder *indexer.DocumentBuilder, ds *sql.DB) ([]string, error) {

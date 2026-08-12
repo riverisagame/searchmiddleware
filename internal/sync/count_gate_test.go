@@ -48,22 +48,28 @@ func TestGetExpectedCount(t *testing.T) {
 		dsMap:     map[string]*sql.DB{"d1": db},
 	}
 
-	got := e.getExpectedCount("maint")
+	got, err := e.getExpectedCount("maint")
+	if err != nil {
+		t.Fatalf("getExpectedCount: %v", err)
+	}
 	if got != 3 {
 		t.Errorf("getExpectedCount: want 3, got %d (修复前会取到第一行 id=5 → 90%% gate 误判)", got)
 	}
 
 	// 大写 SQL 也应正确
 	indexCfgs["maint"].Source.SQLQuery = "SELECT id, name FROM items"
-	got2 := e.getExpectedCount("maint")
+	got2, err := e.getExpectedCount("maint")
 	if got2 != 3 {
 		t.Errorf("uppercase sql: want 3, got %d", got2)
 	}
 
 	// 带 WHERE 的 SQL（增量字段过滤场景的 count 保持 WHERE）
-	indexCfgs["maint"].Source.SQLQuery = "select id, name from items where status = 1"
-	got3 := e.getExpectedCount("maint")
-	if got3 != 0 {
-		t.Errorf("where sql: want 0 (no rows match), got %d", got3)
+	indexCfgs["maint"].Source.SQLQuery = "select id, name from items where id > 6"
+	got3, err := e.getExpectedCount("maint")
+	if err != nil {
+		t.Fatalf("getExpectedCount: %v", err)
+	}
+	if got3 != 1 {
+		t.Errorf("where sql: want 1 (id>6), got %d", got3)
 	}
 }

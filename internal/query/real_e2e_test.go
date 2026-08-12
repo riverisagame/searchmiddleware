@@ -41,7 +41,9 @@ func TestRealZinc_QueryBuilderBoost(t *testing.T) {
 	}, ""); err != nil {
 		t.Fatalf("bulk: %v", err)
 	}
-	time.Sleep(1500 * time.Millisecond)
+	// Zinc NRT：WAL 消费完成前评分基于部分可见文档（IDF 漂移 → 分数/排序不稳定）。
+	// 必须等 WAL 消费稳定后再断言得分（实测 5s 稳定）
+	time.Sleep(5 * time.Second)
 
 	// 用 QueryBuilder 构建查询（维护配置：maintenance_name=5, sub_title=3, category_names=1）
 	indexCfg := &config.IndexConfig{

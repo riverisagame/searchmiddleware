@@ -27,6 +27,10 @@ func NewManager(cfg *config.AppConfig, indexCfgs map[string]*config.IndexConfig,
 	}
 }
 
+func (m *Manager) SetIndexCfgs(cfgs map[string]*config.IndexConfig) {
+	m.indexCfgs = cfgs
+}
+
 func (m *Manager) GetReadAlias(indexName string) string {
 	prefix := m.cfg.Env + "_"
 	if m.cfg.Env == "" {
@@ -100,7 +104,8 @@ func (m *Manager) SwitchAlias(indexName, writeIndex string) error {
 
 	oldIndexes, err := m.zinc.GetAlias(readAlias, m.indexCfgs[indexName].Index.ZincCluster)
 	if err != nil {
-		logx.Errorf("lifecycle", "get old alias failed: %v", err)
+		// 获取旧别名失败必须中止：否则 removeMap 为空 → 新旧索引并存 → 搜索结果重复/冲突
+		return fmt.Errorf("get old alias failed: %w", err)
 	}
 
 	addMap := map[string][]string{readAlias: {writeIndex}}
@@ -125,6 +130,12 @@ func (m *Manager) SwitchAlias(indexName, writeIndex string) error {
 
 func (m *Manager) cleanupOldIndexes(indexName, readAlias, newWriteIndex string) {
 	time.Sleep(24 * time.Hour)
+
+	// 防删 live 索引：若 24h 内又发生全量重建（write_index 已变为别的索引），
+	// 本轮延迟清理放弃——否则会把当前正在服务的索引误删（P0）
+	if cur := m.GetWriteIndex(indexName); cur != newWriteIndex {
+		return
+	}
 
 	oldIndexes, err := m.zinc.GetAlias(readAlias, m.indexCfgs[indexName].Index.ZincCluster)
 	if err != nil {

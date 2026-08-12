@@ -255,7 +255,14 @@ func (b *DocumentBuilder) scanRows(rows *sql.Rows, cols []string) (*BuildResult,
 			val := values[i]
 			doc[col] = b.convertValue(val, col)
 			if col == b.indexCfg.Source.IncrementalField || col == "update_time" {
-				lastCursor = fmt.Sprintf("%v", val)
+				// DATETIME 列（parseTime=true）扫描为 time.Time：%v 输出带时区后缀
+				//（"2026-08-12 10:00:00 +0800 CST"）→ 下次增量 SQL 参数非法 → 永久失败（P1）
+				// 统一转为时间戳（与 BIGINT 列一致，且对 MySQL 比较稳定）
+				if t, ok := val.(time.Time); ok {
+					lastCursor = fmt.Sprintf("%d", t.Unix())
+				} else {
+					lastCursor = fmt.Sprintf("%v", val)
+				}
 			}
 		}
 

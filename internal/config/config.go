@@ -355,6 +355,11 @@ func AcquireIndexCreateLock(dir, name string) error {
 	return f.Close()
 }
 
+// ReleaseIndexCreateLock 清理创建失败的占位文件（防止空 yaml 残留导致启动失败）
+func ReleaseIndexCreateLock(dir, name string) {
+	_ = os.Remove(filepath.Join(dir, name+".yaml"))
+}
+
 // SaveIndexConfig 原子写索引配置：写 .tmp → 校验 → rename 覆盖 → 保留 .bak（Q4 原子写）
 func SaveIndexConfig(dir, name string, data []byte) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
