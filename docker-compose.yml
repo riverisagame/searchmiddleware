@@ -1,10 +1,10 @@
 # 搜索中间件 + ZincSearch++ 部署编排
 # 用法：docker compose up -d
-# Zinc 使用已发布镜像（dockerdoo/zincsearchplusplus，含 v0.70.0 修复：#2 WAL panic / #3 分页配置 / #4 挂起锁 / #5 mapping boost）
+# Zinc 使用已发布镜像（dockerdoo/zincsearchplusplus，v0.77.0 含修复：#2 WAL panic / #3 分页配置+scroll / #4 挂起锁 / #5 mapping boost / #6 NRT 原子可见性 / #7 sort:_id）
 
 services:
   zinc:
-    image: dockerdoo/zincsearchplusplus:0.70.0
+    image: dockerdoo/zincsearchplusplus:0.77.0
     container_name: sm-zinc
     restart: unless-stopped
     environment:

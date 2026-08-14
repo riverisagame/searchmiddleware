@@ -11,7 +11,7 @@
 ## Docker Compose 部署
 
 ```bash
-# 1. 启动（Zinc 用已发布镜像 dockerdoo/zincsearchplusplus:0.70.0，SM 用 ghcr 镜像）
+# 1. 启动（Zinc 用已发布镜像 dockerdoo/zincsearchplusplus:0.77.0，SM 用 ghcr 镜像）
 cd D:\prj\searchmiddleware
 docker compose up -d
 
@@ -24,7 +24,7 @@ curl http://localhost:8091/                # Web GUI
 ```
 
 **版本要求**：
-- Zinc 镜像 ≥ **v0.70.0**（含关键修复：WAL 合并 panic #2、result window 配置化 #3、长查询挂起锁 #4、mapping boost 生效 #5）
+- Zinc 镜像 ≥ **v0.77.0**（含关键修复：WAL 合并 panic #2、分页配置+scroll #3、长查询挂起锁 #4、mapping boost #5、NRT 原子可见性 #6、sort:_id #7）
 - SM 镜像 `ghcr.io/riverisagame/searchmiddleware:latest`
 
 **Zinc 环境变量（生产必需）**：

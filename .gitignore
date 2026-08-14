@@ -1,5 +1,7 @@
 # Go
 *.exe
+*.exe~
+*~
 *.test
 *.out
 go.sum.bak
